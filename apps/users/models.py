@@ -1,7 +1,5 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
-import random
-import string
 from django.utils import timezone
 
 class UserManager(BaseUserManager):
@@ -55,32 +53,47 @@ class User(AbstractUser):
 
 class OTP(models.Model):
 
-    PURPOSE_CHOICES = (
-        ('register', 'Register'),
-        ('forgot_password', 'Forgot Password'),
+    class Purpose(models.TextChoices):
+        REGISTER = "register", "Register"
+        FORGOT_PASSWORD = "forgot_password", "Forgot Password"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='otps'
     )
 
-    user           = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps')
-    otp_code       = models.CharField(max_length=4)
-    otp_type       = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
-    is_used        = models.BooleanField(default=False)
-    created_at     = models.DateTimeField(auto_now_add=True)
-    expires_at     = models.DateTimeField()
-    resend_count   = models.IntegerField(default=0)
-    last_resent_at = models.DateTimeField(null=True, blank=True)
- 
+    otp_code = models.CharField(max_length=6)
+
+    purpose = models.CharField(
+        max_length=30,
+        choices=Purpose.choices
+    )
+
+    is_used = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    expires_at = models.DateTimeField()
+
+    resend_count = models.IntegerField(default=0)
+
+    last_resent_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
     class Meta:
         ordering = ['-created_at']
- 
+        indexes = [
+            models.Index(fields=['user', 'purpose']),
+        ]
+
     def is_expired(self):
         return timezone.now() > self.expires_at
- 
+
     def is_valid(self):
         return not self.is_used and not self.is_expired()
- 
-    @staticmethod
-    def generate_otp():
-        return ''.join(random.choices(string.digits, k=4))
- 
+
     def __str__(self):
-        return f"{self.user.email} | {self.otp_type} | {self.otp_code}"
+        return f"{self.user.email} | {self.purpose}"
