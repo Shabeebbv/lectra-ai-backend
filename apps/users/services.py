@@ -3,6 +3,13 @@ from .utils import generate_otp, otp_expiry_time
 from .selectors import get_active_otp
 from rest_framework.exceptions import ValidationError
 from .selectors import get_active_otp
+from django.contrib.auth import get_user_model,authenticate
+from .emails import send_otp_email
+from rest_framework_simplejwt.tokens import RefreshToken
+
+
+User=get_user_model()
+
 
 def create_otp(user, purpose):
 
@@ -19,6 +26,7 @@ def create_otp(user, purpose):
     )
 
     return otp
+
 
 
 
@@ -40,5 +48,147 @@ def verify_otp(user, purpose, otp_code):
 
     otp.is_used = True
     otp.save()
+
+    return True
+
+
+
+
+
+def register_user(email, password):
+
+    existing_user = User.objects.filter(
+        email=email
+    ).first()
+
+    if existing_user:
+
+        if existing_user.is_verified:
+            raise ValidationError("User already exists")
+
+        otp = create_otp(
+            existing_user,
+            OTP.Purpose.REGISTER
+        )
+
+        send_otp_email(
+            existing_user.email,
+            otp.otp_code
+        )
+
+        return existing_user
+
+    user = User.objects.create_user(
+        email=email,
+        password=password,
+        is_verified=False
+    )
+
+    otp = create_otp(user, OTP.Purpose.REGISTER)
+
+    send_otp_email(user.email, otp.otp_code)
+
+    return user
+
+
+
+
+def verify_register_otp(email, otp_code):
+
+    try:
+        user = User.objects.get(email=email)
+
+    except User.DoesNotExist:
+        raise ValidationError("User not found")
+
+    verify_otp(
+        user=user,
+        purpose=OTP.Purpose.REGISTER,
+        otp_code=otp_code
+    )
+
+    user.is_verified = True
+    user.save()
+
+    refresh = RefreshToken.for_user(user)
+
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    }   
+    
+    
+    
+    
+def login_user(email, password):
+
+    user = authenticate(
+        email=email,
+        password=password
+    )
+
+    if not user:
+        raise ValidationError("Invalid credentials")
+
+    if not user.is_verified:
+        raise ValidationError("Account is not verified")
+
+    refresh = RefreshToken.for_user(user)
+
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    }
+    
+    
+    
+def forgot_password(email):
+
+    try:
+        user = User.objects.get(email=email)
+
+    except User.DoesNotExist:
+        raise ValidationError("User not found")
+
+    otp = create_otp(
+        user=user,
+        purpose=OTP.Purpose.FORGOT_PASSWORD
+    )
+
+    send_otp_email(user.email, otp.otp_code)
+
+    return True
+
+
+def reset_password(email, otp_code, password):
+
+    try:
+        user = User.objects.get(email=email)
+
+    except User.DoesNotExist:
+        raise ValidationError("User not found")
+
+    verify_otp(
+        user=user,
+        purpose=OTP.Purpose.FORGOT_PASSWORD,
+        otp_code=otp_code
+    )
+
+    user.set_password(password)
+    user.save()
+
+    return True
+
+
+
+def logout_user(refresh_token):
+
+    try:
+        token = RefreshToken(refresh_token)
+
+        token.blacklist()
+
+    except Exception:
+        raise ValidationError("Invalid token")
 
     return True
