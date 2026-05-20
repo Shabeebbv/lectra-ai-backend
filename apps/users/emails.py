@@ -10,3 +10,4 @@ def send_otp_email(email, otp):
         recipient_list=[email],
         fail_silently=False,
     )
+    
