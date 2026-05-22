@@ -10,7 +10,8 @@ from .serializers import (
     UserSerializer,
     ForgotPasswordSerializer,
     ResetPasswordSerializer,
-    LogoutSerializer
+    LogoutSerializer,
+    ResendOTPSerializer
 )
 
 from .services import (
@@ -19,7 +20,8 @@ from .services import (
     login_user,
     forgot_password,
     reset_password,
-    logout_user
+    logout_user,
+    resend_otp
 )
 
 
@@ -158,4 +160,22 @@ class LogoutView(APIView):
             message="Logout successful",
             data={},
             status_code=status.HTTP_200_OK
+        )
+        
+        
+        
+class ResendOTPView(APIView):
+
+    def post(self, request):
+
+        serializer = ResendOTPSerializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        resend_otp(
+            email=serializer.validated_data['email']
+        )
+
+        return success_response(
+            message="OTP resent successfully"
         )

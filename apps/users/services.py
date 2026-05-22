@@ -6,7 +6,8 @@ from .selectors import get_active_otp
 from django.contrib.auth import get_user_model,authenticate
 from .emails import send_otp_email
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from django.utils import timezone
+from datetime import timedelta
 
 User=get_user_model()
 
@@ -190,5 +191,46 @@ def logout_user(refresh_token):
 
     except Exception:
         raise ValidationError("Invalid token")
+
+    return True
+
+
+
+def resend_otp(email):
+
+    try:
+        user = User.objects.get(email=email)
+
+    except User.DoesNotExist:
+        raise ValidationError("User not found")
+
+    otp = get_active_otp(
+        user=user,
+        purpose=OTP.Purpose.REGISTER
+    )
+
+    if otp:
+
+        if otp.last_resent_at:
+
+            cooldown = otp.last_resent_at + timedelta(seconds=30)
+
+            if timezone.now() < cooldown:
+                raise ValidationError(
+                    "Please wait before requesting another OTP"
+                )
+
+        otp.delete()
+
+    new_otp = create_otp(
+        user=user,
+        purpose=OTP.Purpose.REGISTER
+    )
+
+    new_otp.resend_count += 1
+    new_otp.last_resent_at = timezone.now()
+    new_otp.save()
+
+    send_otp_email(user.email, new_otp.otp_code)
 
     return True
