@@ -6,28 +6,28 @@ User=get_user_model()
 
 class RegisterSerializer(serializers.Serializer):
 
-    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=15)
     password = serializers.CharField(write_only=True, min_length=6)
 
-    def validate_email(self, value):
+    def validate_phone_number(self, value):
 
-        user = User.objects.filter(email=value).first()
-
-        if user and user.is_verified:
-            raise serializers.ValidationError("User already exists")
+        if User.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError(
+                "Phone number already exists"
+            )
 
         return value
 
 
 class VerifyOTPSerializer(serializers.Serializer):
 
-    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=15)
     otp = serializers.CharField(max_length=6)
     
     
 class LoginSerializer(serializers.Serializer):
 
-    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=15)
     password = serializers.CharField(write_only=True)
     
     
@@ -38,7 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id',
-            'email',
+            'phone_number',
             'role',
             'is_verified',
         ]
@@ -47,12 +47,12 @@ class UserSerializer(serializers.ModelSerializer):
         
 class ForgotPasswordSerializer(serializers.Serializer):
 
-    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=15)
     
     
 class ResetPasswordSerializer(serializers.Serializer):
 
-    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=15)
     otp = serializers.CharField(max_length=6)
     password = serializers.CharField(write_only=True, min_length=6)
     
@@ -64,4 +64,4 @@ class LogoutSerializer(serializers.Serializer):
 
 class ResendOTPSerializer(serializers.Serializer):
 
-    email = serializers.EmailField()
+    phone_number = serializers.CharField(max_length=15)

@@ -34,7 +34,7 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         register_user(
-            email=serializer.validated_data['email'],
+            phone_number=serializer.validated_data['phone_number'],
             password=serializer.validated_data['password']
         )
 
@@ -54,7 +54,7 @@ class VerifyOTPView(APIView):
         serializer.is_valid(raise_exception=True)
 
         tokens = verify_register_otp(
-            email=serializer.validated_data['email'],
+            phone_number=serializer.validated_data['phone_number'],
             otp_code=serializer.validated_data['otp']
         )
 
@@ -76,7 +76,7 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         tokens = login_user(
-            email=serializer.validated_data['email'],
+            phone_number=serializer.validated_data['phone_number'],
             password=serializer.validated_data['password']
         )
 
@@ -111,7 +111,7 @@ class ForgotPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
 
         forgot_password(
-            email=serializer.validated_data['email']
+            phone_number=serializer.validated_data['phone_number']
         )
 
         return success_response(
@@ -130,7 +130,7 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
 
         reset_password(
-            email=serializer.validated_data['email'],
+            phone_number=serializer.validated_data['phone_number'],
             otp_code=serializer.validated_data['otp'],
             password=serializer.validated_data['password']
         )
@@ -173,7 +173,7 @@ class ResendOTPView(APIView):
         serializer.is_valid(raise_exception=True)
 
         resend_otp(
-            email=serializer.validated_data['email']
+            phone_number=serializer.validated_data['phone_number']
         )
 
         return success_response(

@@ -4,10 +4,11 @@ from .selectors import get_active_otp
 from rest_framework.exceptions import ValidationError
 from .selectors import get_active_otp
 from django.contrib.auth import get_user_model,authenticate
-from .emails import send_otp_email
+from .sms import send_otp_sms
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.hashers import check_password
 
 User=get_user_model()
 
@@ -56,11 +57,11 @@ def verify_otp(user, purpose, otp_code):
 
 
 
-def register_user(email, password):
+def register_user(phone_number, password):
 
     existing_user = User.objects.filter(
-        email=email
-    ).first()
+        phone_number=phone_number
+    ).first()   
 
     if existing_user:
 
@@ -72,32 +73,32 @@ def register_user(email, password):
             OTP.Purpose.REGISTER
         )
 
-        send_otp_email(
-            existing_user.email,
+        send_otp_sms(
+            existing_user.phone_number,
             otp.otp_code
         )
 
         return existing_user
 
     user = User.objects.create_user(
-        email=email,
+        phone_number=phone_number,
         password=password,
         is_verified=False
     )
 
     otp = create_otp(user, OTP.Purpose.REGISTER)
 
-    send_otp_email(user.email, otp.otp_code)
+    send_otp_sms(user.phone_number, otp.otp_code)
 
     return user
 
 
 
 
-def verify_register_otp(email, otp_code):
+def verify_register_otp(phone_number, otp_code):
 
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.get(phone_number=phone_number)
 
     except User.DoesNotExist:
         raise ValidationError("User not found")
@@ -121,10 +122,11 @@ def verify_register_otp(email, otp_code):
     
     
     
-def login_user(email, password):
+    
+def login_user(phone_number, password):
 
     user = authenticate(
-        email=email,
+        phone_number=phone_number,
         password=password
     )
 
@@ -143,10 +145,11 @@ def login_user(email, password):
     
     
     
-def forgot_password(email):
+    
+def forgot_password(phone_number):
 
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.get(phone_number=phone_number)
 
     except User.DoesNotExist:
         raise ValidationError("User not found")
@@ -156,15 +159,15 @@ def forgot_password(email):
         purpose=OTP.Purpose.FORGOT_PASSWORD
     )
 
-    send_otp_email(user.email, otp.otp_code)
+    send_otp_sms(user.phone_number, otp.otp_code)
 
     return True
 
 
-def reset_password(email, otp_code, password):
+def reset_password(phone_number, otp_code, password):
 
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.get(phone_number=phone_number)
 
     except User.DoesNotExist:
         raise ValidationError("User not found")
@@ -196,10 +199,10 @@ def logout_user(refresh_token):
 
 
 
-def resend_otp(email):
+def resend_otp(phone_number):
 
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.get(phone_number=phone_number)
 
     except User.DoesNotExist:
         raise ValidationError("User not found")
@@ -231,6 +234,6 @@ def resend_otp(email):
     new_otp.last_resent_at = timezone.now()
     new_otp.save()
 
-    send_otp_email(user.email, new_otp.otp_code)
+    send_otp_sms(user.phone_number, new_otp.otp_code)
 
     return True
