@@ -5,13 +5,18 @@ from django.contrib.auth import get_user_model
 User=get_user_model()
 
 class RegisterSerializer(serializers.Serializer):
-
+    
+    full_name = serializers.CharField(max_length=150)
     phone_number = serializers.CharField(max_length=15)
     password = serializers.CharField(write_only=True, min_length=6)
 
     def validate_phone_number(self, value):
 
-        if User.objects.filter(phone_number=value).exists():
+        user = User.objects.filter(
+            phone_number=value
+        ).first()
+
+        if user and user.is_verified:
             raise serializers.ValidationError(
                 "Phone number already exists"
             )

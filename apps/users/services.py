@@ -2,13 +2,11 @@ from .models import OTP
 from .utils import generate_otp, otp_expiry_time
 from .selectors import get_active_otp
 from rest_framework.exceptions import ValidationError
-from .selectors import get_active_otp
 from django.contrib.auth import get_user_model,authenticate
-from .sms import send_otp_sms
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 from datetime import timedelta
-from django.contrib.auth.hashers import check_password
+from .tasks import send_otp_task
 
 User=get_user_model()
 
@@ -57,7 +55,7 @@ def verify_otp(user, purpose, otp_code):
 
 
 
-def register_user(phone_number, password):
+def register_user(full_name,phone_number, password):
 
     existing_user = User.objects.filter(
         phone_number=phone_number
@@ -73,14 +71,14 @@ def register_user(phone_number, password):
             OTP.Purpose.REGISTER
         )
 
-        send_otp_sms(
+        send_otp_task.delay(
             existing_user.phone_number,
             otp.otp_code
         )
-
         return existing_user
 
     user = User.objects.create_user(
+        full_name=full_name,
         phone_number=phone_number,
         password=password,
         is_verified=False
@@ -88,7 +86,7 @@ def register_user(phone_number, password):
 
     otp = create_otp(user, OTP.Purpose.REGISTER)
 
-    send_otp_sms(user.phone_number, otp.otp_code)
+    send_otp_task.delay(user.phone_number, otp.otp_code)
 
     return user
 
@@ -159,7 +157,7 @@ def forgot_password(phone_number):
         purpose=OTP.Purpose.FORGOT_PASSWORD
     )
 
-    send_otp_sms(user.phone_number, otp.otp_code)
+    send_otp_task.delay(user.phone_number, otp.otp_code)
 
     return True
 
@@ -234,6 +232,6 @@ def resend_otp(phone_number):
     new_otp.last_resent_at = timezone.now()
     new_otp.save()
 
-    send_otp_sms(user.phone_number, new_otp.otp_code)
+    send_otp_task.delay(user.phone_number, new_otp.otp_code)
 
     return True

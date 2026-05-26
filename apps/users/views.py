@@ -34,6 +34,7 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
 
         register_user(
+            full_name=serializer.validated_data['full_name'],
             phone_number=serializer.validated_data['phone_number'],
             password=serializer.validated_data['password']
         )

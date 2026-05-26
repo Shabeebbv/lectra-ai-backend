@@ -31,14 +31,18 @@ class User(AbstractUser):
     )
     
     username = None
-
-    email = models.EmailField(unique=True)
+    full_name = models.CharField(max_length=150)
+    
+    email = models.EmailField(unique=True,
+    null=True,
+    blank=True)
     
     phone_number = models.CharField(
         max_length=15,
         unique=True,
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
     
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
@@ -52,6 +56,9 @@ class User(AbstractUser):
     objects = UserManager()
     
     def __str__(self):
+        if self.full_name:
+            return self.full_name
+
         return self.phone_number
     
     
@@ -101,4 +108,4 @@ class OTP(models.Model):
         return not self.is_used and not self.is_expired()
 
     def __str__(self):
-        return f"{self.user.email} | {self.purpose}"
+        return f"{self.user.phone_number} | {self.purpose}"
