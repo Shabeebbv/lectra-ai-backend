@@ -1,3 +1,5 @@
+import re
+
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
@@ -11,6 +13,9 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
     def validate_phone_number(self, value):
+        
+        if not re.match(r'^\+?1?\d{9,15}$', value):
+            raise serializers.ValidationError("Enter a valid phone number (e.g. +919876543210)")
 
         user = User.objects.filter(
             phone_number=value
@@ -43,6 +48,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id',
+            'full_name',
             'phone_number',
             'role',
             'is_verified',
@@ -70,3 +76,4 @@ class LogoutSerializer(serializers.Serializer):
 class ResendOTPSerializer(serializers.Serializer):
 
     phone_number = serializers.CharField(max_length=15)
+    purpose = serializers.CharField(max_length=30)

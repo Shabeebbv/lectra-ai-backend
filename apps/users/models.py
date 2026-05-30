@@ -40,7 +40,6 @@ class User(AbstractUser):
     phone_number = models.CharField(
         max_length=15,
         unique=True,
-        null=True,
         blank=True,
         db_index=True
     )

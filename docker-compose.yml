@@ -2,6 +2,7 @@ services:
 
   web:
     build: .
+
     command: python manage.py runserver 0.0.0.0:8000
 
     volumes:
@@ -25,6 +26,9 @@ services:
     ports:
       - "5432:5432"
 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   redis:
     image: redis:7
 
@@ -33,6 +37,7 @@ services:
 
   celery:
     build: .
+
     command: celery -A config worker -l info
 
     volumes:
@@ -41,3 +46,6 @@ services:
     depends_on:
       - redis
       - db
+
+volumes:
+  postgres_data:

@@ -3,13 +3,14 @@ from twilio.rest import Client
 from django.conf import settings
 
 
-client = Client(
-    settings.TWILIO_ACCOUNT_SID,
-    settings.TWILIO_AUTH_TOKEN
-)
+
 
 
 def send_otp_sms(phone_number, otp):
+    client = Client(
+    settings.TWILIO_ACCOUNT_SID,
+    settings.TWILIO_AUTH_TOKEN
+)
 
     try:
         message = client.messages.create(

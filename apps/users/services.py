@@ -197,7 +197,7 @@ def logout_user(refresh_token):
 
 
 
-def resend_otp(phone_number):
+def resend_otp(phone_number,purpose):
 
     try:
         user = User.objects.get(phone_number=phone_number)
@@ -207,7 +207,7 @@ def resend_otp(phone_number):
 
     otp = get_active_otp(
         user=user,
-        purpose=OTP.Purpose.REGISTER
+        purpose=purpose
     )
 
     if otp:
@@ -225,7 +225,7 @@ def resend_otp(phone_number):
 
     new_otp = create_otp(
         user=user,
-        purpose=OTP.Purpose.REGISTER
+        purpose=purpose
     )
 
     new_otp.resend_count += 1

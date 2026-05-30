@@ -32,6 +32,8 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +49,7 @@ INSTALLED_APPS = [
     'apps.users',
     
     'django_celery_results',
+    
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -181,3 +184,18 @@ TWILIO_PHONE_NUMBER = config("TWILIO_PHONE_NUMBER")
 CELERY_BROKER_URL = 'redis://redis:6379/0'
 
 CELERY_RESULT_BACKEND = 'django-db' 
+
+#channels configuration
+
+ASGI_APPLICATION = 'config.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
+
