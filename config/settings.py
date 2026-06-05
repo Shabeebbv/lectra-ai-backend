@@ -48,9 +48,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     
     'apps.users',
+    'apps.lectures',
     
     'django_celery_results',
-    
+    "drf_spectacular",
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -132,6 +133,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     
+    'DEFAULT_SCHEMA_CLASS': (
+        'drf_spectacular.openapi.AutoSchema'
+    ),
+    
     'EXCEPTION_HANDLER': 'config.exceptions.custom_exception_handler',
 }
 
@@ -158,8 +163,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
-
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
@@ -202,4 +207,15 @@ CHANNEL_LAYERS = {
 }
 
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:6379/0'
+
+# Media files configuration
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Lectra AI API",
+    "DESCRIPTION": "Backend APIs for Lectra AI",
+    "VERSION": "1.0.0",
+}
 

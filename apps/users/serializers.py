@@ -42,6 +42,7 @@ class LoginSerializer(serializers.Serializer):
     
     
     
+    
 class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
