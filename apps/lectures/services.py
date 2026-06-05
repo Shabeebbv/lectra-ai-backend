@@ -1,5 +1,6 @@
-from .models import Lecture
-from .tasks import process_lecture_task
+from .models import Lecture, Transcript
+import os
+import subprocess
 
 
 def create_lecture(
@@ -13,9 +14,52 @@ def create_lecture(
         title=title,
         video_file=video_file
     )
-
+    
+    from .tasks import process_lecture_task
+    
     process_lecture_task.delay(
         lecture.id
     )
 
     return lecture  
+
+
+def extract_audio(lecture):
+
+    video_path = lecture.video_file.path
+
+    audio_filename = (
+        f"{lecture.id}.mp3"
+    )
+
+    audio_path = os.path.join(
+        "media",
+        "lectures",
+        "audio",
+        audio_filename
+    )
+
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-i",
+            video_path,
+            audio_path
+        ]
+    )
+
+    lecture.audio_file = (
+        f"lectures/audio/{audio_filename}"
+    )
+
+    lecture.save()
+
+    return lecture
+
+
+def generate_transcript(lecture):
+    
+    Transcript.objects.create(
+    lecture=lecture,
+    content="This is a sample transcript"
+)

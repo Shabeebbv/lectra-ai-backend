@@ -55,3 +55,19 @@ class Lecture(models.Model):
 
     def __str__(self):
         return self.title
+    
+    
+    
+class Transcript(models.Model):
+
+    lecture = models.OneToOneField(
+        Lecture,
+        on_delete=models.CASCADE,
+        related_name="transcript"
+    )
+
+    content = models.TextField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )

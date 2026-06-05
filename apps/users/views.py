@@ -180,3 +180,4 @@ class ResendOTPView(APIView):
         return success_response(
             message="OTP resent successfully"
         )
+        
