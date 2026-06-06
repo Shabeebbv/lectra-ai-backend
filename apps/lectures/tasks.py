@@ -1,6 +1,6 @@
 from celery import shared_task
 from .models import Lecture
-from .services import extract_audio, generate_transcript
+from .services import extract_audio, generate_notes, generate_transcript
 
 @shared_task
 def process_lecture_task(
@@ -22,6 +22,10 @@ def process_lecture_task(
     )
     
     generate_transcript(
+    lecture
+)
+    
+    generate_notes(
     lecture
 )
 

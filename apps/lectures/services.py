@@ -1,4 +1,4 @@
-from .models import Lecture, Transcript
+from .models import Lecture, LectureNote, Transcript
 import os
 import subprocess
 
@@ -63,3 +63,23 @@ def generate_transcript(lecture):
     lecture=lecture,
     content="This is a sample transcript"
 )
+    
+    
+
+def generate_notes(lecture):
+
+    transcript = lecture.transcript.content
+
+    notes = f"""
+    Notes Generated
+
+    Transcript Summary:
+
+    {transcript[:200]}
+    """
+
+    LectureNote.objects.create(
+        lecture=lecture,
+        content=notes
+    )
+    

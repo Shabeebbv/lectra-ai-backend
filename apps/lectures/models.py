@@ -71,3 +71,25 @@ class Transcript(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True
     )
+    
+    def __str__(self):
+        return self.lecture.title
+    
+    
+    
+class LectureNote(models.Model):
+
+    lecture = models.OneToOneField(
+        Lecture,
+        on_delete=models.CASCADE,
+        related_name="notes"
+    )
+
+    content = models.TextField()
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+    
+    def __str__(self):
+        return self.lecture.title
