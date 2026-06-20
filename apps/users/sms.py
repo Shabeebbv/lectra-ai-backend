@@ -5,7 +5,6 @@ from django.conf import settings
 
 
 
-
 def send_otp_sms(phone_number, otp):
     client = Client(
     settings.TWILIO_ACCOUNT_SID,

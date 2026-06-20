@@ -83,3 +83,19 @@ def generate_notes(lecture):
         content=notes
     )
     
+    
+    
+    
+def delete_lecture(lecture):
+
+    if lecture.video_file:
+        lecture.video_file.delete(
+            save=False
+        )
+
+    if lecture.audio_file:
+        lecture.audio_file.delete(
+            save=False
+        )
+
+    lecture.delete()
