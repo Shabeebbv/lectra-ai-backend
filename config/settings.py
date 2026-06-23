@@ -219,3 +219,19 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
 }
 
+
+# AWS S3 Configuration
+
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+
+AWS_SECRET_ACCESS_KEY = config(
+    "AWS_SECRET_ACCESS_KEY"
+)
+
+AWS_STORAGE_BUCKET_NAME = config(
+    "AWS_STORAGE_BUCKET_NAME"
+)
+
+AWS_REGION = config(
+    "AWS_REGION"
+)

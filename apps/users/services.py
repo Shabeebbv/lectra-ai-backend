@@ -102,13 +102,13 @@ def register_user(full_name, phone_number, password):
     return user
 
 
-def verify_register_otp(phone_number, otp_code):
+def verify_register_otp(phone_number, otp):
     user = _get_user_by_phone(phone_number)
 
     verify_otp(
         user=user,
         purpose=OTP.Purpose.REGISTER,
-        otp_code=otp_code
+        otp_code=otp
     )
 
     user.is_verified = True
@@ -158,9 +158,9 @@ def reset_password(phone_number, otp_code, password):
     return True
 
 
-def logout_user(refresh_token):
+def logout_user(refresh):
     try:
-        RefreshToken(refresh_token).blacklist()
+        RefreshToken(refresh).blacklist()
     except Exception:
         raise ValidationError("Invalid token")
 

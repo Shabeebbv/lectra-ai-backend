@@ -2,62 +2,35 @@ from django.db import models
 from django.conf import settings
 
 
-from django.core.exceptions import ValidationError
-
-
-def validate_video(value):
-    allowed = [".mp4", ".avi", ".mov"]
-
-    if not any(value.name.endswith(ext) for ext in allowed):
-        raise ValidationError("Only video files allowed")
-    
-    
 class Lecture(models.Model):
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
+        PENDING    = "pending",    "Pending"
         PROCESSING = "processing", "Processing"
-        COMPLETED = "completed", "Completed"
-        FAILED = "failed", "Failed"
+        TRANSCRIBING = "transcribing", "Transcribing"
+        COMPLETED  = "completed",  "Completed"
+        FAILED     = "failed",     "Failed"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="lectures"
     )
-
-    title = models.CharField(max_length=255)
-
-    video_file = models.FileField(
-        upload_to="lectures/videos/",
-        validators=[validate_video]
-    )
+    title      = models.CharField(max_length=255)
+    video_file = models.URLField(max_length=500)       
 
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.PENDING
     )
-
-    created_at = models.DateTimeField(
-        auto_now_add=True
-    )
-
-    updated_at = models.DateTimeField(
-        auto_now=True
-    )
-    
-    audio_file = models.FileField(
-    upload_to="lectures/audio/",
-    null=True,
-    blank=True
-)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.title
-    
-    
-    
+
+
 class Transcript(models.Model):
 
     lecture = models.OneToOneField(
@@ -65,18 +38,13 @@ class Transcript(models.Model):
         on_delete=models.CASCADE,
         related_name="transcript"
     )
+    content    = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    content = models.TextField()
-
-    created_at = models.DateTimeField(
-        auto_now_add=True
-    )
-    
     def __str__(self):
         return self.lecture.title
-    
-    
-    
+
+
 class LectureNote(models.Model):
 
     lecture = models.OneToOneField(
@@ -84,12 +52,8 @@ class LectureNote(models.Model):
         on_delete=models.CASCADE,
         related_name="notes"
     )
+    content    = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    content = models.TextField()
-
-    created_at = models.DateTimeField(
-        auto_now_add=True
-    )
-    
     def __str__(self):
         return self.lecture.title

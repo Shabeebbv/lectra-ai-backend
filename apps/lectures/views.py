@@ -10,8 +10,9 @@ from .serializers import (
     LectureCreateSerializer,
     LectureDetailSerializer,
     LectureSerializer,
+    GenerateUploadURLSerializer
 )
-from .services import create_lecture, delete_lecture
+from .services import create_lecture, delete_lecture, generate_presigned_url
 
 
 class LectureUploadView(APIView):
@@ -75,3 +76,17 @@ class LectureDeleteView(APIView):
         delete_lecture(lecture)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+
+class GenerateUploadURLView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = GenerateUploadURLSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = generate_presigned_url(
+            serializer.validated_data["filename"]
+        )
+
+        return Response(data)

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Lecture
-
+from .utils import ALLOWED_EXTENSIONS
 
 class LectureCreateSerializer(
     serializers.ModelSerializer
@@ -46,7 +46,6 @@ class LectureDetailSerializer(
             "title",
             "status",
             "video_file",
-            "audio_file",
             "transcript",
             "notes",
             "created_at"
@@ -65,3 +64,15 @@ class LectureDetailSerializer(
             return obj.notes.content
 
         return None
+
+
+class GenerateUploadURLSerializer(serializers.Serializer):
+    filename = serializers.CharField()
+
+    def validate_filename(self, value):
+        ext = value.rsplit('.', 1)[-1].lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise serializers.ValidationError(
+                f"Only video files allowed: {ALLOWED_EXTENSIONS}"
+            )
+        return value
