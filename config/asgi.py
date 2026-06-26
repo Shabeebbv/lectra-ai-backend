@@ -1,16 +1,20 @@
 import os
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')  # ← must be FIRST
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter, URLRouter
-from apps.users.routing import websocket_urlpatterns  # ← now safe to import
 
+# Initialize Django FIRST
 django_asgi_app = get_asgi_application()
+
+# Import Channels stuff AFTER Django is initialized
+from channels.routing import ProtocolTypeRouter, URLRouter
+from apps.users.jwt_auth_middleware import JWTAuthMiddleware
+from apps.lectures.routing import websocket_urlpatterns
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": URLRouter(
-        websocket_urlpatterns
+    "websocket": JWTAuthMiddleware(
+        URLRouter(websocket_urlpatterns)
     ),
 })

@@ -235,3 +235,9 @@ AWS_STORAGE_BUCKET_NAME = config(
 AWS_REGION = config(
     "AWS_REGION"
 )
+
+#  absolute ChromaDB path
+CHROMA_DB_PATH = BASE_DIR / "chroma_db"
+
+# GROQ API key
+GROQ_API_KEY = config("GROQ_API_KEY")

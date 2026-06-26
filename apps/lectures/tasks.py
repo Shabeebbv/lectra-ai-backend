@@ -1,12 +1,13 @@
-from celery import shared_task
-from .models import Lecture
-from .services import extract_audio, generate_notes, generate_transcript
 import os
-from .utils import _download_file
-from .ai_services import (
-    split_transcript,
-    store_chunks
-)
+
+from celery import shared_task
+
+from .models import Lecture
+from .services import extract_audio, generate_transcript, generate_notes
+from .utils import _download_file,_push_status
+from .ai_services import split_transcript, store_chunks
+
+
 
 @shared_task
 def process_lecture_task(lecture_id):
@@ -18,12 +19,10 @@ def process_lecture_task(lecture_id):
 
         lecture.status = Lecture.Status.PROCESSING
         lecture.save()
+        _push_status(lecture)
 
-        # 1. download video from S3 once
-        video_tmp = _download_file(
-            lecture.video_file,
-            suffix=".mp4"
-        )
+        # 1. download video from S3
+        video_tmp = _download_file(lecture.video_file, suffix=".mp4")
 
         # 2. extract audio to temp file
         audio_tmp = extract_audio(video_tmp)
@@ -34,27 +33,28 @@ def process_lecture_task(lecture_id):
 
         # 4. transcribe audio
         generate_transcript(lecture, audio_tmp)
-        
-        chunks = split_transcript(lecture.transcript.content)
 
+        # 5. chunk and store in ChromaDB
+        chunks = split_transcript(lecture.transcript.content)
         store_chunks(lecture.id, chunks)
 
-        # 5. generate notes
+        # 6. generate notes
         generate_notes(lecture)
 
         lecture.status = Lecture.Status.COMPLETED
         lecture.save()
+        _push_status(lecture)
 
-    except Lecture.DoesNotExist:
-        pass
 
-    except Exception:
+
+    except Exception as e:
         lecture.status = Lecture.Status.FAILED
+        lecture.save()
+        _push_status(lecture)
         lecture.save()
         raise
 
     finally:
-        # always clean up whatever temp files exist
         if video_tmp and os.path.exists(video_tmp):
             os.remove(video_tmp)
         if audio_tmp and os.path.exists(audio_tmp):

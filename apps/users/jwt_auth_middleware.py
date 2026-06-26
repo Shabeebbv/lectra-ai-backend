@@ -1,0 +1,41 @@
+"""
+JWT authentication middleware for Django Channels.
+
+Browsers can't set custom headers on a WebSocket handshake, so the access
+token is passed as a query parameter instead: ws://host/ws/notifications/?token=<access>
+
+This mirrors what JWTAuthentication does for DRF, but for ASGI's scope-based
+connection lifecycle instead of a per-request object.
+"""
+
+from urllib.parse import parse_qs
+
+from channels.db import database_sync_to_async
+from channels.middleware import BaseMiddleware
+from django.contrib.auth.models import AnonymousUser
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.tokens import AccessToken
+
+from apps.users.models import User
+
+
+@database_sync_to_async
+def get_user_from_token(token):
+    try:
+        validated_token = AccessToken(token)
+        user_id = validated_token["user_id"]
+        return User.objects.get(id=user_id)
+    except (InvalidToken, TokenError, User.DoesNotExist, KeyError):
+        return AnonymousUser()
+
+
+class JWTAuthMiddleware(BaseMiddleware):
+    async def __call__(self, scope, receive, send):
+        query_string = scope.get("query_string", b"").decode()
+        params = parse_qs(query_string)
+        token = params.get("token", [None])[0]
+
+        user = await get_user_from_token(token) if token else AnonymousUser()
+        scope["user"] = user
+
+        return await super().__call__(scope, receive, send)

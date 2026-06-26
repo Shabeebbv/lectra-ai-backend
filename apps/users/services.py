@@ -1,4 +1,4 @@
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework.exceptions import ValidationError
@@ -15,7 +15,6 @@ User = get_user_model()
 # ── helpers ─────────────────────────────────────────────────────
 
 def _get_user_by_phone(phone_number):
-    """Fetch user or raise ValidationError."""
     try:
         return User.objects.get(phone_number=phone_number)
     except User.DoesNotExist:
@@ -23,7 +22,6 @@ def _get_user_by_phone(phone_number):
 
 
 def _issue_tokens(user):
-    """Return JWT access + refresh tokens for a user."""
     refresh = RefreshToken.for_user(user)
     return {
         "access":  str(refresh.access_token),
@@ -32,7 +30,6 @@ def _issue_tokens(user):
 
 
 def _send_otp(user, purpose):
-    """Create OTP and dispatch SMS task."""
     otp = create_otp(user, purpose)
     send_otp_task.delay(user.phone_number, otp.otp_code)
     return otp
@@ -59,13 +56,10 @@ def verify_otp(user, purpose, otp_code):
 
     if not otp:
         raise ValidationError("OTP not found")
-
     if otp.is_expired():
         raise ValidationError("OTP expired")
-
     if otp.is_used:
         raise ValidationError("OTP already used")
-
     if otp.otp_code != otp_code:
         raise ValidationError("Invalid OTP")
 
@@ -77,14 +71,12 @@ def verify_otp(user, purpose, otp_code):
 
 # ── auth services ────────────────────────────────────────────────
 
-def register_user(full_name, phone_number, password):
-    existing_user = User.objects.filter(
-        phone_number=phone_number
-    ).first()
+def register_user(full_name, phone_number):
+    existing_user = User.objects.filter(phone_number=phone_number).first()
 
     if existing_user:
         if existing_user.is_verified:
-            raise ValidationError("User already registered")
+            raise ValidationError("Phone number already registered")
 
         # resend OTP to unverified existing user
         _send_otp(existing_user, OTP.Purpose.REGISTER)
@@ -92,8 +84,7 @@ def register_user(full_name, phone_number, password):
 
     user = User.objects.create_user(
         full_name=full_name,
-        phone_number=phone_number,
-        password=password,
+        phone_number=phone_number,   
         is_verified=False
     )
 
@@ -105,11 +96,7 @@ def register_user(full_name, phone_number, password):
 def verify_register_otp(phone_number, otp):
     user = _get_user_by_phone(phone_number)
 
-    verify_otp(
-        user=user,
-        purpose=OTP.Purpose.REGISTER,
-        otp_code=otp
-    )
+    verify_otp(user=user, purpose=OTP.Purpose.REGISTER, otp_code=otp)
 
     user.is_verified = True
     user.save()
@@ -117,45 +104,23 @@ def verify_register_otp(phone_number, otp):
     return _issue_tokens(user)
 
 
-def login_user(phone_number, password):
-    user = authenticate(
-        phone_number=phone_number,
-        password=password
-    )
-
-    if not user:
-        raise ValidationError("Invalid credentials")
+def login_user(phone_number):
+    user = _get_user_by_phone(phone_number)
 
     if not user.is_verified:
         raise ValidationError("Account is not verified")
 
-    return _issue_tokens(user)
-
-
-def forgot_password(phone_number):
-    try:
-        user = User.objects.get(phone_number=phone_number)
-        _send_otp(user, OTP.Purpose.FORGOT_PASSWORD)
-
-    except User.DoesNotExist:
-        pass
+    _send_otp(user, OTP.Purpose.LOGIN)
 
     return True
 
 
-def reset_password(phone_number, otp_code, password):
+def verify_login_otp(phone_number, otp):
     user = _get_user_by_phone(phone_number)
 
-    verify_otp(
-        user=user,
-        purpose=OTP.Purpose.FORGOT_PASSWORD,
-        otp_code=otp_code
-    )
+    verify_otp(user=user, purpose=OTP.Purpose.LOGIN, otp_code=otp)
 
-    user.set_password(password)
-    user.save()
-
-    return True
+    return _issue_tokens(user)
 
 
 def logout_user(refresh):
@@ -177,8 +142,8 @@ def resend_otp(phone_number, purpose):
         otp.delete()
 
     new_otp = create_otp(user=user, purpose=purpose)
-    new_otp.resend_count += 1
-    new_otp.last_resent_at = timezone.now()
+    new_otp.resend_count    += 1
+    new_otp.last_resent_at  = timezone.now()
     new_otp.save()
 
     send_otp_task.delay(user.phone_number, new_otp.otp_code)
@@ -187,7 +152,6 @@ def resend_otp(phone_number, purpose):
 
 
 def _check_resend_cooldown(otp, seconds=30):
-    """Raise if OTP was resent too recently."""
     if not otp.last_resent_at:
         return
 
@@ -197,3 +161,4 @@ def _check_resend_cooldown(otp, seconds=30):
         raise ValidationError(
             "Please wait before requesting another OTP"
         )
+

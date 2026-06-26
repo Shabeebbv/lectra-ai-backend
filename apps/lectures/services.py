@@ -2,18 +2,54 @@ import os
 import uuid
 import tempfile
 import subprocess
+from urllib.parse import quote
 
 import whisper
-
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from django.conf import settings
 
 from .models import Lecture, Transcript, LectureNote
-from .utils import get_s3_client, ALLOWED_VIDEO_TYPES,_download_file, _upload_to_s3, _delete_from_s3
-
-whisper_model = whisper.load_model("base")
+from .utils import get_s3_client, ALLOWED_VIDEO_TYPES, _download_file, _delete_from_s3
 
 
-# ── services ────────────────────────────────────────────────────
+whisper_model = whisper.load_model("tiny")
+
+llm = ChatGroq(
+    api_key=settings.GROQ_API_KEY,
+    model="llama-3.1-8b-instant",
+    temperature=0.3
+)
+
+notes_prompt = PromptTemplate.from_template("""
+You are an expert study assistant.
+Generate clear, structured notes from the lecture transcript below.
+
+Format your notes like this:
+## Summary
+(2-3 sentence overview of the lecture)
+
+## Key Topics
+(main topics covered as bullet points)
+
+## Important Points
+(detailed important points explained clearly)
+
+## Key Terms
+(important terms and their definitions)
+
+## Quick Recap
+(3-5 bullet points to remember)
+
+Transcript:
+{transcript}
+
+Generate the notes now:
+""")
+
+notes_chain = notes_prompt | llm | StrOutputParser()
+
 
 def create_lecture(user, title, video_file):
     lecture = Lecture.objects.create(
@@ -29,13 +65,12 @@ def create_lecture(user, title, video_file):
 
 
 def extract_audio(video_tmp_path):
-    """Extract audio from video file. Returns temp audio path."""
+    """Extract audio from video. Returns temp audio path."""
     audio_tmp = tempfile.mktemp(suffix=".mp3")
 
     subprocess.run(
         [
-            "ffmpeg",
-            "-y",
+            "ffmpeg", "-y",
             "-i", video_tmp_path,
             "-vn",
             "-acodec", "mp3",
@@ -49,6 +84,8 @@ def extract_audio(video_tmp_path):
 
 
 def generate_transcript(lecture, audio_path):
+    """Transcribe audio using Whisper and save to DB."""
+
     result = whisper_model.transcribe(audio_path)
 
     Transcript.objects.create(
@@ -57,22 +94,15 @@ def generate_transcript(lecture, audio_path):
     )
 
 
+
 def generate_notes(lecture):
-    """Generate AI notes from transcript using OpenAI."""
+    """Generate structured notes from transcript using Groq LLM."""
+
     transcript_text = lecture.transcript.content
 
-    # TODO: replace with real OpenAI/Gemini call
-    # import openai
-    # response = openai.chat.completions.create(
-    #     model="gpt-4",
-    #     messages=[{
-    #         "role": "user",
-    #         "content": f"Generate structured notes from:\n{transcript_text}"
-    #     }]
-    # )
-    # notes_content = response.choices[0].message.content
-
-    notes_content = transcript_text  # placeholder until AI integrated
+    notes_content = notes_chain.invoke({
+        "transcript": transcript_text
+    })
 
     LectureNote.objects.create(
         lecture=lecture,
@@ -80,14 +110,16 @@ def generate_notes(lecture):
     )
 
 
+
 def delete_lecture(lecture):
-    """Delete lecture and its files from S3."""
-    # ✅ delete from S3 using boto3
+    """Delete lecture, video from S3, and chunks from ChromaDB."""
     if lecture.video_file:
         _delete_from_s3(lecture.video_file)
 
-    if lecture.audio_file:
-        _delete_from_s3(lecture.audio_file)
+    from .vector_store import collection
+    collection.delete(
+        where={"lecture_id": str(lecture.id)}
+    )
 
     lecture.delete()
 
@@ -109,9 +141,11 @@ def generate_presigned_url(filename):
         ExpiresIn=3600
     )
 
+    encoded_key = quote(key, safe="/")
+
     file_url = (
         f"https://{settings.AWS_STORAGE_BUCKET_NAME}"
-        f".s3.{settings.AWS_REGION}.amazonaws.com/{key}"
+        f".s3.{settings.AWS_REGION}.amazonaws.com/{encoded_key}"
     )
 
     return {

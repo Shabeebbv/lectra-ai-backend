@@ -1,7 +1,8 @@
 import chromadb
+from django.conf import settings
 
 client = chromadb.PersistentClient(
-    path="./chroma_db"
+    path=str(settings.CHROMA_DB_PATH)   
 )
 
 collection = client.get_or_create_collection(

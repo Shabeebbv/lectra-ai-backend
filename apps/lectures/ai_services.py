@@ -1,43 +1,26 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from .vector_store import collection
 
-def split_transcript(transcript_text):
 
+def split_transcript(transcript_text):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
     )
-
-    return splitter.split_text(
-        transcript_text
-    )
+    return splitter.split_text(transcript_text)
 
 
+def store_chunks(lecture_id, chunks):
+    ids       = [f"{lecture_id}_{i}" for i, _ in enumerate(chunks)]
+    metadatas = [{"lecture_id": str(lecture_id)} for _ in chunks]  
 
-
-def store_chunks(
-    lecture_id,
-    chunks
-):
-
-    ids = []
-
-    metadatas = []
-
-    for i, chunk in enumerate(chunks):
-
-        ids.append(
-            f"{lecture_id}_{i}"
+    try:
+        collection.add(
+            documents=chunks,
+            ids=ids,
+            metadatas=metadatas
         )
-
-        metadatas.append(
-            {
-                "lecture_id": lecture_id
-            }
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to store chunks for lecture {lecture_id}: {e}"
         )
-
-    collection.add(
-        documents=chunks,
-        ids=ids,
-        metadatas=metadatas
-    )

@@ -22,68 +22,50 @@ class RegisterSerializer(PhoneNumberMixin, serializers.Serializer):
 
     full_name    = serializers.CharField(max_length=150)
     phone_number = serializers.CharField(max_length=15)
-    password     = serializers.CharField(write_only=True, min_length=6)
 
     def validate_phone_number(self, value):
-        # format check via mixin
         value = super().validate_phone_number(value)
 
-        # DB check — only needed on register
         user = User.objects.filter(phone_number=value).first()
         if user and user.is_verified:
             raise serializers.ValidationError(
                 "Phone number already registered"
             )
-
         return value
 
 
 class VerifyOTPSerializer(PhoneNumberMixin, serializers.Serializer):
-
+    """Used for register OTP verification."""
     phone_number = serializers.CharField(max_length=15)
     otp          = serializers.CharField(max_length=6)
 
 
 class LoginSerializer(PhoneNumberMixin, serializers.Serializer):
-
+    """Login only needs phone number — OTP sent to phone."""
     phone_number = serializers.CharField(max_length=15)
-    password     = serializers.CharField(write_only=True)
+
+
+class VerifyLoginOTPSerializer(PhoneNumberMixin, serializers.Serializer):
+    """Verify login OTP and issue tokens."""
+    phone_number = serializers.CharField(max_length=15)
+    otp          = serializers.CharField(max_length=6)
 
 
 class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model  = User
-        fields = [
-            'id',
-            'full_name',
-            'phone_number',
-            'role',
-            'is_verified',
-        ]
-        read_only_fields = fields   #  all fields are read-only
-
-
-class ForgotPasswordSerializer(PhoneNumberMixin, serializers.Serializer):
-
-    phone_number = serializers.CharField(max_length=15)
-
-
-class ResetPasswordSerializer(PhoneNumberMixin, serializers.Serializer):
-
-    phone_number = serializers.CharField(max_length=15)
-    otp          = serializers.CharField(max_length=6)
-    password     = serializers.CharField(write_only=True, min_length=6)
+        model        = User
+        fields       = ['id', 'full_name', 'phone_number', 'role', 'is_verified']
+        read_only_fields = fields
 
 
 class LogoutSerializer(serializers.Serializer):
-
     refresh = serializers.CharField()
 
 
 class ResendOTPSerializer(PhoneNumberMixin, serializers.Serializer):
-
     phone_number = serializers.CharField(max_length=15)
-    purpose      = serializers.ChoiceField(          #  only valid values allowed
-        choices=["register", "forgot_password"]
+    purpose      = serializers.ChoiceField(
+        choices=["register", "login"]  
     )
+

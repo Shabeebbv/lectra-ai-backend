@@ -1,6 +1,4 @@
-# views.py (auth)
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
@@ -9,9 +7,8 @@ from .serializers import (
     RegisterSerializer,
     VerifyOTPSerializer,
     LoginSerializer,
+    VerifyLoginOTPSerializer,
     UserSerializer,
-    ForgotPasswordSerializer,
-    ResetPasswordSerializer,
     LogoutSerializer,
     ResendOTPSerializer,
 )
@@ -19,8 +16,7 @@ from .services import (
     register_user,
     verify_register_otp,
     login_user,
-    forgot_password,
-    reset_password,
+    verify_login_otp,
     logout_user,
     resend_otp,
 )
@@ -41,6 +37,7 @@ class RegisterView(APIView):
 
 
 class VerifyOTPView(APIView):
+    """Verify register OTP — issues tokens on success."""
 
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
@@ -55,16 +52,31 @@ class VerifyOTPView(APIView):
 
 
 class LoginView(APIView):
+    """Send OTP to phone number."""
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        tokens = login_user(**serializer.validated_data)
+        login_user(**serializer.validated_data)
+
+        return success_response(
+            message="OTP sent successfully"
+        )
+
+
+class VerifyLoginOTPView(APIView):
+    """Verify login OTP — issues tokens on success."""
+
+    def post(self, request):
+        serializer = VerifyLoginOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tokens = verify_login_otp(**serializer.validated_data)
 
         return success_response(
             message="Login successful",
-            data=tokens
+            data={"tokens": tokens}
         )
 
 
@@ -78,32 +90,6 @@ class MeView(APIView):
         return success_response(
             message="User fetched successfully",
             data=serializer.data
-        )
-
-
-class ForgotPasswordView(APIView):
-
-    def post(self, request):
-        serializer = ForgotPasswordSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        forgot_password(**serializer.validated_data)
-
-        return success_response(
-            message="OTP sent successfully"
-        )
-
-
-class ResetPasswordView(APIView):
-
-    def post(self, request):
-        serializer = ResetPasswordSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        reset_password(**serializer.validated_data)
-
-        return success_response(
-            message="Password reset successful"
         )
 
 
@@ -133,3 +119,4 @@ class ResendOTPView(APIView):
         return success_response(
             message="OTP resent successfully"
         )
+
