@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import GenerateUploadURLView, LectureDeleteView, LectureDetailView, LectureUploadView, LectureListView
+from .views import AskQuestionAPIView, GenerateUploadURLView, LectureDeleteView, LectureDetailView, LectureUploadView, LectureListView, TutorHistoryView
 urlpatterns = [
     path('upload/', LectureUploadView.as_view(), name='lecture-upload'),
     path('list/', LectureListView.as_view(), name='lecture-list'),
@@ -8,6 +8,14 @@ urlpatterns = [
     path(
     "upload-url/",
     GenerateUploadURLView.as_view()
-)
-    
+),
+    path(
+    "<int:lecture_id>/ask/",
+    AskQuestionAPIView.as_view()
+),
+path(
+    "<int:lecture_id>/tutor-history/",
+    TutorHistoryView.as_view(),
+    name="lecture-tutor-history"
+),
 ]

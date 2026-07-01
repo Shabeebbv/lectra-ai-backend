@@ -11,10 +11,13 @@ def split_transcript(transcript_text):
 
 
 def store_chunks(lecture_id, chunks):
-    ids       = [f"{lecture_id}_{i}" for i, _ in enumerate(chunks)]
-    metadatas = [{"lecture_id": str(lecture_id)} for _ in chunks]  
+    ids = [f"{lecture_id}_{i}" for i, _ in enumerate(chunks)]
+    metadatas = [{"lecture_id": str(lecture_id)} for _ in chunks]
 
     try:
+       
+        collection.delete(where={"lecture_id": str(lecture_id)})
+
         collection.add(
             documents=chunks,
             ids=ids,

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Lecture
 from .utils import ALLOWED_EXTENSIONS
+from .models import TutorMessage  # add alongside your existing model imports
 
 class LectureCreateSerializer(
     serializers.ModelSerializer
@@ -76,3 +77,26 @@ class GenerateUploadURLSerializer(serializers.Serializer):
                 f"Only video files allowed: {ALLOWED_EXTENSIONS}"
             )
         return value
+
+
+class AskQuestionSerializer(
+    serializers.Serializer
+):
+
+    question = (
+        serializers.CharField()
+    )
+    
+    
+    
+ 
+class TutorMessageSerializer(serializers.ModelSerializer):
+ 
+    class Meta:
+        model = TutorMessage
+        fields = ["id", "question", "answer", "created_at"]
+ 
+ 
+class AskQuestionSerializer(serializers.Serializer):
+    question = serializers.CharField()
+ 

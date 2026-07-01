@@ -9,18 +9,12 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from django.conf import settings
-
+from .llm import llm
 from .models import Lecture, Transcript, LectureNote
 from .utils import get_s3_client, ALLOWED_VIDEO_TYPES, _download_file, _delete_from_s3
 
 
 whisper_model = whisper.load_model("tiny")
-
-llm = ChatGroq(
-    api_key=settings.GROQ_API_KEY,
-    model="llama-3.1-8b-instant",
-    temperature=0.3
-)
 
 notes_prompt = PromptTemplate.from_template("""
 You are an expert study assistant.

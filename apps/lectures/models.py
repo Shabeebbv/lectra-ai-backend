@@ -57,3 +57,25 @@ class LectureNote(models.Model):
 
     def __str__(self):
         return self.lecture.title
+    
+    
+class TutorMessage(models.Model):
+    """
+    One question-and-answer exchange with the AI Tutor for a given lecture.
+    Ordered chronologically per lecture via created_at.
+    """
+ 
+    lecture = models.ForeignKey(
+        Lecture,
+        on_delete=models.CASCADE,
+        related_name="tutor_messages"
+    )
+    question = models.TextField()
+    answer = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        ordering = ["created_at"]
+ 
+    def __str__(self):
+        return f"{self.lecture.title} — {self.question[:50]}"

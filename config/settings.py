@@ -237,7 +237,7 @@ AWS_REGION = config(
 )
 
 #  absolute ChromaDB path
-CHROMA_DB_PATH = BASE_DIR / "chroma_db"
-
+CHROMA_HOST = config("CHROMA_HOST", default="chroma")
+CHROMA_PORT = config("CHROMA_PORT", default=8000, cast=int)
 # GROQ API key
 GROQ_API_KEY = config("GROQ_API_KEY")
