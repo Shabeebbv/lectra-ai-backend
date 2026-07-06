@@ -69,3 +69,10 @@ class ResendOTPSerializer(PhoneNumberMixin, serializers.Serializer):
         choices=["register", "login"]  
     )
 
+
+
+class FCMTokenSerializer(
+    serializers.Serializer
+):
+
+    token = serializers.CharField()

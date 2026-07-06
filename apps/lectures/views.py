@@ -1,20 +1,22 @@
 # views.py (lecture)
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status,generics
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
 from apps.lectures.rag import ask_question
+from apps.users.utils import success_response
 
-from .models import Lecture, TutorMessage
+from .models import Lecture, Notification, TutorMessage
 from .serializers import (
     LectureCreateSerializer,
     LectureDetailSerializer,
     LectureSerializer,
     GenerateUploadURLSerializer,
     AskQuestionSerializer,
-    TutorMessageSerializer
+    TutorMessageSerializer,
+    NotificationSerializer
 )
 from .services import create_lecture, delete_lecture, generate_presigned_url
 
@@ -186,3 +188,31 @@ class TutorHistoryView(APIView):
         return Response(
             TutorMessageSerializer(messages, many=True).data
         )
+
+
+# apps/lectures/views.py
+class NotificationListView(generics.ListAPIView):
+    """Most recent notifications for the bell dropdown."""
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)[:20]
+
+
+class UnreadCountView(APIView):
+    """Badge count for the bell icon."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        count = Notification.objects.filter(user=request.user, is_read=False).count()
+        return success_response(message="Unread count fetched", data={"count": count})
+
+
+class MarkAllReadView(APIView):
+    """Called when the user opens the bell dropdown — clears the badge."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return success_response(message="All notifications marked as read")

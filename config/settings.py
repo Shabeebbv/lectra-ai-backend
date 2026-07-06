@@ -235,6 +235,9 @@ AWS_STORAGE_BUCKET_NAME = config(
 AWS_REGION = config(
     "AWS_REGION"
 )
+AWS_SQS_URL = config(
+    "AWS_SQS_URL"
+)
 
 #  absolute ChromaDB path
 CHROMA_HOST = config("CHROMA_HOST", default="chroma")

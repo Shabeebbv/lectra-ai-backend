@@ -1,12 +1,17 @@
-from celery import shared_task
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+import logging
 import os
 
+from asgiref.sync import async_to_sync
+from celery import shared_task
+from channels.layers import get_channel_layer
+
+from .ai_services import split_transcript, store_chunks
 from .models import Lecture
+from .notification_service import send_notification
 from .services import extract_audio, generate_notes, generate_transcript
 from .utils import _download_file
-from .ai_services import split_transcript, store_chunks
+
+logger = logging.getLogger(__name__)
 
 
 def _push_status(lecture):
@@ -56,12 +61,27 @@ def process_lecture_task(lecture_id):
 
         generate_notes(lecture)
 
+        # --- Core pipeline is done. Mark completed and tell the frontend
+        # immediately, BEFORE touching anything non-essential like
+        # notifications. Nothing after this point should be able to flip
+        # a successfully-processed lecture back to "failed".
         lecture.status = Lecture.Status.COMPLETED
         lecture.save()
         _push_status(lecture)
 
+        # Notifications are best-effort. A failure here (bad AWS creds,
+        # SQS down, missing FCM tokens, etc.) must never affect the
+        # lecture's real status — the actual work already succeeded.
+        try:
+            send_notification(lecture)
+        except Exception:
+            logger.exception(
+                "Failed to send notification for lecture %s (processing itself succeeded)",
+                lecture.id,
+            )
+
     except Lecture.DoesNotExist:
-        pass
+        logger.warning("process_lecture_task: Lecture %s does not exist", lecture_id)
 
     except Exception:
         lecture.status = Lecture.Status.FAILED

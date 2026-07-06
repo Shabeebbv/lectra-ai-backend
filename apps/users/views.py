@@ -1,6 +1,7 @@
-from rest_framework.views import APIView
+from rest_framework.views import APIView, Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from .models import FCMToken
 
 from .utils import success_response
 from .serializers import (
@@ -11,6 +12,7 @@ from .serializers import (
     UserSerializer,
     LogoutSerializer,
     ResendOTPSerializer,
+    FCMTokenSerializer
 )
 from .services import (
     register_user,
@@ -120,3 +122,42 @@ class ResendOTPView(APIView):
             message="OTP resent successfully"
         )
 
+class SaveFCMTokenView(
+    APIView
+):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def post(
+        self,
+        request
+    ):
+
+        serializer = (
+            FCMTokenSerializer(
+                data=request.data
+            )
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        FCMToken.objects.update_or_create(
+
+            token=
+            serializer.validated_data[
+                "token"
+            ],
+
+            defaults={
+                "user":
+                request.user
+            }
+        )
+
+        return Response({
+            "success": True
+        })

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Lecture
+from .models import Lecture, Notification
 from .utils import ALLOWED_EXTENSIONS
 from .models import TutorMessage  # add alongside your existing model imports
 
@@ -100,3 +100,10 @@ class TutorMessageSerializer(serializers.ModelSerializer):
 class AskQuestionSerializer(serializers.Serializer):
     question = serializers.CharField()
  
+ 
+class NotificationSerializer(serializers.ModelSerializer):
+    lecture_id = serializers.IntegerField(source="lecture.id", read_only=True, allow_null=True)
+
+    class Meta:
+        model = Notification
+        fields = ["id", "title", "body", "is_read", "created_at", "lecture_id"]

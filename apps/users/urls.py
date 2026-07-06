@@ -3,6 +3,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     RegisterView,
+    SaveFCMTokenView,
     VerifyOTPView,
     LoginView,
     VerifyLoginOTPView,
@@ -20,5 +21,6 @@ urlpatterns = [
     path('logout/',            LogoutView.as_view()),
     path('resend-otp/',        ResendOTPView.as_view()),
     path('token/refresh/',     TokenRefreshView.as_view()),
+    path("fcm-token/",SaveFCMTokenView.as_view()),
 
 ]

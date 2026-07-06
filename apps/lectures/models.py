@@ -79,3 +79,19 @@ class TutorMessage(models.Model):
  
     def __str__(self):
         return f"{self.lecture.title} — {self.question[:50]}"
+    
+    
+class Notification(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications"
+    )
+    lecture = models.ForeignKey(Lecture, null=True, blank=True, on_delete=models.SET_NULL)
+    title = models.CharField(max_length=255)
+    body = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]

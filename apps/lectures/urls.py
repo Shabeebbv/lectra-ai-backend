@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import AskQuestionAPIView, GenerateUploadURLView, LectureDeleteView, LectureDetailView, LectureUploadView, LectureListView, TutorHistoryView
+from .views import AskQuestionAPIView, GenerateUploadURLView, LectureDeleteView, LectureDetailView, LectureUploadView, LectureListView, MarkAllReadView, NotificationListView, TutorHistoryView, UnreadCountView
 urlpatterns = [
     path('upload/', LectureUploadView.as_view(), name='lecture-upload'),
     path('list/', LectureListView.as_view(), name='lecture-list'),
@@ -18,4 +18,7 @@ path(
     TutorHistoryView.as_view(),
     name="lecture-tutor-history"
 ),
+path("notifications/", NotificationListView.as_view()),
+path("notifications/unread-count/", UnreadCountView.as_view()),
+path("notifications/mark-all-read/", MarkAllReadView.as_view()),
 ]

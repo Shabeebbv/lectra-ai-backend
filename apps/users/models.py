@@ -83,3 +83,22 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"{self.user.phone_number} | {self.purpose}"
+    
+    
+class FCMToken(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="fcm_tokens"
+    )
+
+    token = models.TextField(
+        unique=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.user.id}"
