@@ -16,7 +16,8 @@ from .serializers import (
     GenerateUploadURLSerializer,
     AskQuestionSerializer,
     TutorMessageSerializer,
-    NotificationSerializer
+    NotificationSerializer,
+    TimelineHighlightSerializer
 )
 from .services import create_lecture, delete_lecture, generate_presigned_url
 
@@ -98,45 +99,6 @@ class GenerateUploadURLView(APIView):
         return Response(data)
     
     
-    
-class AskQuestionAPIView(
-    APIView
-):
-
-    permission_classes = [
-        IsAuthenticated
-    ]
-
-    def post(
-        self,
-        request,
-        lecture_id
-    ):
-
-        serializer = (
-            AskQuestionSerializer(
-                data=request.data
-            )
-        )
-
-        serializer.is_valid(
-            raise_exception=True
-        )
-
-        answer = ask_question(
-            lecture_id,
-            serializer.validated_data[
-                "question"
-            ]
-        )
-
-        return Response(
-            {
-                "answer":
-                answer
-            }
-        )   
-        
 
 class AskQuestionAPIView(APIView):
  
@@ -216,3 +178,25 @@ class MarkAllReadView(APIView):
     def post(self, request):
         Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
         return success_response(message="All notifications marked as read")
+
+
+
+class LectureTimelineView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, lecture_id):
+        lecture = get_object_or_404(Lecture, id=lecture_id, user=request.user)
+        highlights = lecture.timeline_highlights.all()  # Meta.ordering = start_time
+        serializer = TimelineHighlightSerializer(highlights, many=True)
+
+        return success_response(
+            message="Timeline fetched successfully",
+            data={
+                "lecture": {
+                    "id": lecture.id,
+                    "title": lecture.title,
+                    "status": lecture.status,
+                },
+                "highlights": serializer.data,
+            }
+        )

@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import Lecture, Notification
+from .models import Lecture, Notification, TimelineHighlight
 from .utils import ALLOWED_EXTENSIONS
-from .models import TutorMessage  # add alongside your existing model imports
+from .models import TutorMessage  
 
 class LectureCreateSerializer(
     serializers.ModelSerializer
@@ -107,3 +107,13 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ["id", "title", "body", "is_read", "created_at", "lecture_id"]
+        
+        
+        
+class TimelineHighlightSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TimelineHighlight
+        fields = [
+            "id", "start_time", "end_time", "title",
+            "description", "tags", "highlight_type", "equation",
+        ]

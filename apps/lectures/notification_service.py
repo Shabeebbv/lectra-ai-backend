@@ -17,11 +17,7 @@ sqs = boto3.client(
 
 
 def _build_message(lecture):
-    """
-    Builds the (title, body) text shown in the bell dropdown and in the
-    browser push notification. Keep both short — push notifications
-    truncate long bodies on most platforms.
-    """
+
     if lecture.status == "completed":
         title = f"{lecture.title} is ready"
         body = "Your lecture has been transcribed and notes are ready to view."
@@ -36,16 +32,7 @@ def _build_message(lecture):
 
 
 def send_notification(lecture):
-    """
-    Creates the persistent Notification row (powers the bell icon) and,
-    if the user has any registered FCM tokens, publishes an event to SQS
-    for the Lambda function to deliver as a browser push notification.
 
-    This function is called from process_lecture_task AFTER the lecture's
-    real status has already been saved and pushed via WebSocket. Any
-    exception raised here should be caught by the caller and logged, never
-    allowed to affect the lecture's actual status.
-    """
     user = lecture.user
     title, body = _build_message(lecture)
 

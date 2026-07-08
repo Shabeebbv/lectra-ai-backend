@@ -8,7 +8,7 @@ from channels.layers import get_channel_layer
 from .ai_services import split_transcript, store_chunks
 from .models import Lecture
 from .notification_service import send_notification
-from .services import extract_audio, generate_notes, generate_transcript
+from .services import extract_audio, generate_notes, generate_transcript,generate_timeline
 from .utils import _download_file
 
 logger = logging.getLogger(__name__)
@@ -60,6 +60,14 @@ def process_lecture_task(lecture_id):
         store_chunks(lecture.id, chunks)
 
         generate_notes(lecture)
+        
+        try:
+            generate_timeline(lecture)
+        except Exception:
+            logger.exception(
+                "Failed to generate timeline for lecture %s (core processing succeeded)",
+                lecture.id,
+            )
 
         # --- Core pipeline is done. Mark completed and tell the frontend
         # immediately, BEFORE touching anything non-essential like

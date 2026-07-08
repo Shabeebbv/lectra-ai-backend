@@ -3,15 +3,18 @@ import uuid
 import tempfile
 import subprocess
 from urllib.parse import quote
-
+import json
+import logging
+import re
 import whisper
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from django.conf import settings
 from .llm import llm
-from .models import Lecture, Transcript, LectureNote
+from .models import Lecture, Transcript, LectureNote ,TimelineHighlight
 from .utils import get_s3_client, ALLOWED_VIDEO_TYPES, _download_file, _delete_from_s3
+logger = logging.getLogger(__name__)
 
 
 whisper_model = whisper.load_model("tiny")
@@ -77,15 +80,15 @@ def extract_audio(video_tmp_path):
     return audio_tmp
 
 
-def generate_transcript(lecture, audio_path):
-    """Transcribe audio using Whisper and save to DB."""
+# def generate_transcript(lecture, audio_path):
+#     """Transcribe audio using Whisper and save to DB."""
 
-    result = whisper_model.transcribe(audio_path)
+#     result = whisper_model.transcribe(audio_path)
 
-    Transcript.objects.create(
-        lecture=lecture,
-        content=result["text"]
-    )
+#     Transcript.objects.create(
+#         lecture=lecture,
+#         content=result["text"]
+#     )
 
 
 
@@ -147,3 +150,103 @@ def generate_presigned_url(filename):
         "file_url":     file_url,
         "content_type": content_type
     }
+    
+    
+    
+#timeline 
+
+timeline_prompt = PromptTemplate.from_template("""
+You are an expert lecture analyst. Below is a lecture transcript broken into
+timestamped segments (seconds).
+
+Group these into 4 to 8 chronological "timeline highlights" that summarize the
+key moments of the lecture. Do not create a highlight per segment — merge
+related segments into meaningful chunks.
+
+Return ONLY a JSON array, no other text, no markdown code fences, in exactly
+this shape:
+[
+  {{
+    "start_time": <integer seconds>,
+    "end_time": <integer seconds>,
+    "title": "<short title, max 8 words>",
+    "description": "<2-3 sentence description>",
+    "tags": ["<tag1>", "<tag2>"],
+    "type": "concept" or "equation",
+    "equation": "<only if type is equation, else null>"
+  }}
+]
+
+Timestamped segments:
+{segments}
+
+JSON output:
+""")
+
+timeline_chain = timeline_prompt | llm | StrOutputParser()
+
+
+def generate_transcript(lecture, audio_path):
+    """Transcribe audio using Whisper and save text + segment timestamps to DB."""
+
+    result = whisper_model.transcribe(audio_path)
+
+    segments = [
+        {
+            "start": round(seg["start"], 2),
+            "end": round(seg["end"], 2),
+            "text": seg["text"].strip(),
+        }
+        for seg in result.get("segments", [])
+    ]
+
+    Transcript.objects.create(
+        lecture=lecture,
+        content=result["text"],
+        segments=segments,
+    )
+
+
+def _format_segments_for_prompt(segments):
+    return "\n".join(f"[{seg['start']}-{seg['end']}] {seg['text']}" for seg in segments)
+
+
+def generate_timeline(lecture):
+    """Generate structured timeline highlights from transcript segments using the LLM."""
+
+    segments = lecture.transcript.segments
+
+    if not segments:
+        logger.warning("No segments for lecture %s, skipping timeline generation", lecture.id)
+        return
+
+    raw_output = timeline_chain.invoke({
+        "segments": _format_segments_for_prompt(segments)
+    })
+
+    cleaned = re.sub(r"^```(json)?|```$", "", raw_output.strip(), flags=re.MULTILINE).strip()
+
+    try:
+        highlights = json.loads(cleaned)
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse timeline JSON for lecture %s", lecture.id)
+        return
+
+    TimelineHighlight.objects.filter(lecture=lecture).delete()
+
+    for h in highlights:
+        TimelineHighlight.objects.create(
+            lecture=lecture,
+            start_time=h.get("start_time", 0),
+            end_time=h.get("end_time", 0),
+            title=(h.get("title") or "")[:255],
+            description=h.get("description", ""),
+            tags=h.get("tags", []),
+            highlight_type=(
+                TimelineHighlight.HighlightType.EQUATION
+                if h.get("type") == "equation"
+                else TimelineHighlight.HighlightType.CONCEPT
+            ),
+            equation=h.get("equation") or "",
+        )
+

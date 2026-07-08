@@ -27,10 +27,18 @@ from .services import (
 class RegisterView(APIView):
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        register_user(**serializer.validated_data)
+        serializer = RegisterSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        register_user(
+            **serializer.validated_data
+        )
 
         return success_response(
             message="OTP sent successfully",
@@ -39,28 +47,44 @@ class RegisterView(APIView):
 
 
 class VerifyOTPView(APIView):
-    """Verify register OTP — issues tokens on success."""
 
     def post(self, request):
-        serializer = VerifyOTPSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        tokens = verify_register_otp(**serializer.validated_data)
+        serializer = VerifyOTPSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        tokens = verify_register_otp(
+            **serializer.validated_data
+        )
 
         return success_response(
             message="Account verified successfully",
-            data={"tokens": tokens}
+            data={
+                "tokens": tokens
+            }
         )
 
 
 class LoginView(APIView):
-    """Send OTP to phone number."""
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        login_user(**serializer.validated_data)
+        serializer = LoginSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        login_user(
+            **serializer.validated_data
+        )
 
         return success_response(
             message="OTP sent successfully"
@@ -68,17 +92,26 @@ class LoginView(APIView):
 
 
 class VerifyLoginOTPView(APIView):
-    """Verify login OTP — issues tokens on success."""
 
     def post(self, request):
-        serializer = VerifyLoginOTPSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        tokens = verify_login_otp(**serializer.validated_data)
+        serializer = VerifyLoginOTPSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        tokens = verify_login_otp(
+            **serializer.validated_data
+        )
 
         return success_response(
             message="Login successful",
-            data={"tokens": tokens}
+            data={
+                "tokens": tokens
+            }
         )
 
 
@@ -113,10 +146,18 @@ class LogoutView(APIView):
 class ResendOTPView(APIView):
 
     def post(self, request):
-        serializer = ResendOTPSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
 
-        resend_otp(**serializer.validated_data)
+        serializer = ResendOTPSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        resend_otp(
+            **serializer.validated_data
+        )
 
         return success_response(
             message="OTP resent successfully"

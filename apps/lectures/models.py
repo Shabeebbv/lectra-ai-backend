@@ -32,13 +32,13 @@ class Lecture(models.Model):
 
 
 class Transcript(models.Model):
-
     lecture = models.OneToOneField(
         Lecture,
         on_delete=models.CASCADE,
         related_name="transcript"
     )
     content    = models.TextField()
+    segments   = models.JSONField(default=list, blank=True)  # [{start, end, text}, ...] from Whisper
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -95,3 +95,34 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        
+        
+class TimelineHighlight(models.Model):
+
+    class HighlightType(models.TextChoices):
+        CONCEPT  = "concept",  "Concept"
+        EQUATION = "equation", "Equation"
+
+    lecture = models.ForeignKey(
+        Lecture,
+        on_delete=models.CASCADE,
+        related_name="timeline_highlights"
+    )
+    start_time = models.PositiveIntegerField(help_text="Seconds from lecture start")
+    end_time   = models.PositiveIntegerField(help_text="Seconds from lecture start")
+    title       = models.CharField(max_length=255)
+    description = models.TextField()
+    tags        = models.JSONField(default=list, blank=True)
+    highlight_type = models.CharField(
+        max_length=20,
+        choices=HighlightType.choices,
+        default=HighlightType.CONCEPT
+    )
+    equation   = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["start_time"]
+
+    def __str__(self):
+        return f"{self.lecture.title} — {self.title}"
