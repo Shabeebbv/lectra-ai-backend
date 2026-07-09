@@ -22,10 +22,14 @@ User = get_user_model()
 # ── helpers ─────────────────────────────────────────────────────
 
 def _get_user_by_identifier(identifier):
+    """
+    Excludes soft-deleted users — a deleted account's email/phone
+    is treated as if it doesn't exist for login/register/OTP purposes.
+    """
     if "@" in identifier:
-        user = User.objects.filter(email__iexact=identifier).first()
+        user = User.objects.filter(email__iexact=identifier, is_deleted=False).first()
     else:
-        user = User.objects.filter(phone_number=identifier).first()
+        user = User.objects.filter(phone_number=identifier, is_deleted=False).first()
 
     if not user:
         raise ValidationError("User not found.")
@@ -99,11 +103,13 @@ def register_user(full_name, email=None, phone_number=None):
 
     user = None
 
+    # Only match against active (non-deleted) users — a soft-deleted
+    # user's email/phone is free for re-registration.
     if email:
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email=email, is_deleted=False).first()
 
     if not user and phone_number:
-        user = User.objects.filter(phone_number=phone_number).first()
+        user = User.objects.filter(phone_number=phone_number, is_deleted=False).first()
 
     identifier = email or phone_number
 
@@ -125,8 +131,7 @@ def register_user(full_name, email=None, phone_number=None):
     otp = create_otp(user, OTP.Purpose.REGISTER)
     _send_otp(user, identifier, otp)
 
-    return user
-
+    return user 
 
 def verify_register_otp(identifier, otp):
     user = _get_user_by_identifier(identifier)
@@ -149,6 +154,9 @@ def login_user(identifier):
     if not user.is_verified:
         raise ValidationError("Account is not verified.")
 
+    if user.is_blocked:
+        raise ValidationError("Your account has been blocked. Contact support.")
+
     otp = create_otp(user, OTP.Purpose.LOGIN)
     _send_otp(user, identifier, otp)
 
@@ -157,6 +165,9 @@ def login_user(identifier):
 
 def verify_login_otp(identifier, otp):
     user = _get_user_by_identifier(identifier)
+
+    if user.is_blocked:
+        raise ValidationError("Your account has been blocked. Contact support.")
 
     verify_otp(
         user=user,

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     
     'apps.users',
     'apps.lectures',
+    "apps.admin_panel",
     
     'django_celery_results',
     "drf_spectacular",

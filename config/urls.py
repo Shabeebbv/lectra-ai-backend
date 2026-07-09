@@ -38,6 +38,8 @@ urlpatterns = [
     path('api/users/', include('apps.users.urls')),
     path('api/core/', include('apps.core.urls')),
     path('api/lectures/', include('apps.lectures.urls')),
+    path('api/admin_panel/', include('apps.admin_panel.urls')),
+
     
 ]
 

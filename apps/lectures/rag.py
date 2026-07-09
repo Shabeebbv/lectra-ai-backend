@@ -10,10 +10,6 @@ def retrieve_context(
     question: str,
     top_k: int = 3,
 ) -> str:
-    """
-    Retrieve the most relevant chunks
-    from the vector database.
-    """
 
     lecture_chunks = collection.get(where={"lecture_id": str(lecture_id)})
     chunk_ids = lecture_chunks.get("ids", [])
@@ -69,10 +65,7 @@ def ask_question(
     lecture_id: int,
     question: str,
 ) -> str:
-    """
-    Retrieve context and generate
-    an answer using RAG.
-    """
+
 
     context = retrieve_context(
         lecture_id=lecture_id,
