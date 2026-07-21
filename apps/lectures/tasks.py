@@ -4,12 +4,15 @@ import os
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
-
+from django.utils import timezone
+from datetime import timedelta
+from django.conf import settings
 from .ai_services import split_transcript, store_chunks
 from .models import Lecture
 from .notification_service import send_notification
 from .services import extract_audio, generate_notes, generate_transcript,generate_timeline
 from .utils import _download_file
+from apps.lectures.models import Notification
 
 logger = logging.getLogger(__name__)
 
@@ -102,3 +105,18 @@ def process_lecture_task(lecture_id):
             os.remove(video_tmp)
         if audio_tmp and os.path.exists(audio_tmp):
             os.remove(audio_tmp)
+            
+            
+@shared_task
+def delete_old_notifications():
+    """
+    Deletes Notification rows older than NOTIFICATION_RETENTION_DAYS.
+    Runs on a schedule via Celery Beat (see settings.CELERY_BEAT_SCHEDULE).
+    """
+    retention_days = getattr(settings, "NOTIFICATION_RETENTION_DAYS", 30)
+    cutoff = timezone.now() - timedelta(days=retention_days)
+
+    deleted_count, _ = Notification.objects.filter(created_at__lt=cutoff).delete()
+
+    return f"Deleted {deleted_count} notifications older than {retention_days} days."
+

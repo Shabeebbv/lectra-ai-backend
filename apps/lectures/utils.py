@@ -119,3 +119,25 @@ def _push_status(lecture):
         },
     )
  
+ 
+def generate_video_presigned_url(file_url, expires_in=3600):
+    """
+    Generate a temporary secure URL that allows the browser
+    to play a private S3 lecture video.
+
+    The original video remains private in S3.
+    Default expiry: 1 hour.
+    """
+
+    key = _key_from_url(file_url)
+
+    s3 = get_s3_client()
+
+    return s3.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={
+            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+            "Key": key,
+        },
+        ExpiresIn=expires_in,
+    )

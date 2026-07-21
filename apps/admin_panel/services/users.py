@@ -73,6 +73,7 @@ def update_user_role(user_id, requesting_user, new_role):
 def toggle_user_block(user_id, requesting_user):
     """
     Blocks/unblocks a user (toggle). Admin cannot block a super_admin.
+    Sets/clears blocked_at alongside is_blocked.
     """
     target_user = get_user_detail(user_id)
 
@@ -83,7 +84,8 @@ def toggle_user_block(user_id, requesting_user):
         raise PermissionDenied("You cannot block your own account.")
 
     target_user.is_blocked = not target_user.is_blocked
-    target_user.save(update_fields=["is_blocked"])
+    target_user.blocked_at = timezone.now() if target_user.is_blocked else None
+    target_user.save(update_fields=["is_blocked", "blocked_at"])
 
     return target_user
 

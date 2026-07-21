@@ -1,9 +1,11 @@
 from datetime import timedelta
 
+from amqp import NotFound
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from rest_framework.exceptions import ValidationError
+
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import OTP
@@ -16,6 +18,9 @@ from .utils import (
     generate_otp,
     otp_expiry_time,
 )
+
+import pyotp
+from .models import MFADevice
 
 User = get_user_model()
 
@@ -39,6 +44,8 @@ def _get_user_by_identifier(identifier):
 
 def _issue_tokens(user):
     refresh = RefreshToken.for_user(user)
+    refresh["role"] = user.role
+    refresh["full_name"] = user.full_name
     return {
         "access": str(refresh.access_token),
         "refresh": str(refresh),
@@ -212,3 +219,105 @@ def _check_resend_cooldown(otp, seconds=30):
 
     if timezone.now() < cooldown:
         raise ValidationError("Please wait before requesting another OTP")
+    
+
+
+# ── MFA setup (called by an already-logged-in admin) ──────────────
+
+def generate_mfa_secret(user):
+    """
+    Creates or resets an MFA device for the user with a fresh secret.
+    Not enabled until verify_and_enable_mfa() succeeds — prevents a
+    half-finished setup from locking anyone out.
+    """
+    secret = pyotp.random_base32()
+
+    device, _ = MFADevice.objects.update_or_create(
+        user=user,
+        defaults={"secret": secret, "is_enabled": False, "enabled_at": None},
+    )
+
+    issuer = "Lectra AI"
+    account_name = user.email or user.phone_number
+    provisioning_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=account_name, issuer_name=issuer
+    )
+
+    return {"secret": secret, "provisioning_uri": provisioning_uri}
+
+
+def verify_and_enable_mfa(user, code):
+    device = MFADevice.objects.filter(user=user).first()
+    if not device:
+        raise ValidationError("No MFA setup in progress. Start setup first.")
+
+    totp = pyotp.TOTP(device.secret)
+    if not totp.verify(code, valid_window=1):
+        raise ValidationError("Invalid code. Please try again.")
+
+    device.is_enabled = True
+    device.enabled_at = timezone.now()
+    device.save(update_fields=["is_enabled", "enabled_at"])
+
+    return True
+
+
+def disable_mfa(user):
+    MFADevice.objects.filter(user=user).delete()
+    return True
+
+
+def get_mfa_status(user):
+    device = MFADevice.objects.filter(user=user).first()
+    return {"enabled": bool(device and device.is_enabled)}
+
+
+# ── MFA-aware login ─────────────────────────────────────────────
+
+def verify_login_otp(identifier, otp):
+    """
+    Verifies the primary OTP. For admin/super_admin with MFA enabled,
+    tokens are withheld and mfa_required=True is returned instead —
+    the frontend must then call verify_mfa_login() to finish.
+    """
+    user = _get_user_by_identifier(identifier)
+
+    if user.is_blocked:
+        raise ValidationError("Your account has been blocked. Contact support.")
+
+    verify_otp(
+        user=user,
+        purpose=OTP.Purpose.LOGIN,
+        otp_code=otp,
+    )
+
+    requires_mfa = (
+        user.role in ("admin", "super_admin")
+        and MFADevice.objects.filter(user=user, is_enabled=True).exists()
+    )
+
+    if requires_mfa:
+        return {"mfa_required": True, "identifier": identifier}
+
+    tokens = _issue_tokens(user)
+    return {"mfa_required": False, "tokens": tokens}
+
+
+def verify_mfa_login(identifier, code):
+    """
+    Second step for MFA-enabled admins — verifies the TOTP code and
+    issues tokens. Only reachable after verify_login_otp already
+    confirmed the primary OTP, so this doesn't re-check password/OTP.
+    """
+    user = _get_user_by_identifier(identifier)
+
+    device = MFADevice.objects.filter(user=user, is_enabled=True).first()
+    if not device:
+        raise ValidationError("MFA is not enabled for this account.")
+
+    totp = pyotp.TOTP(device.secret)
+    if not totp.verify(code, valid_window=1):
+        raise ValidationError("Invalid authentication code.")
+
+    return _issue_tokens(user)
+

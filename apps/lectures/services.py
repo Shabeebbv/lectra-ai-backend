@@ -6,18 +6,21 @@ from urllib.parse import quote
 import json
 import logging
 import re
-import whisper
+from groq import Groq
+from amqp import NotFound
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from django.conf import settings
 from .llm import llm
 from .models import Lecture, Transcript, LectureNote ,TimelineHighlight
-from .utils import get_s3_client, ALLOWED_VIDEO_TYPES, _download_file, _delete_from_s3
+from .utils import get_s3_client, ALLOWED_VIDEO_TYPES, _download_file, _delete_from_s3,_key_from_url
+
 logger = logging.getLogger(__name__)
 
-
-whisper_model = whisper.load_model("tiny")
+groq_client = Groq(
+    api_key=settings.GROQ_API_KEY
+)
 
 notes_prompt = PromptTemplate.from_template("""
 You are an expert study assistant.
@@ -62,34 +65,48 @@ def create_lecture(user, title, video_file):
 
 
 def extract_audio(video_tmp_path):
-    """Extract audio from video. Returns temp audio path."""
+    """
+    Extract compressed mono audio from a lecture video.
+
+    The audio is optimized for speech transcription:
+    - mono
+    - 16 kHz
+    - 32 kbps MP3
+
+    This keeps uploads to the transcription API small.
+    """
+
     audio_tmp = tempfile.mktemp(suffix=".mp3")
 
-    subprocess.run(
-        [
-            "ffmpeg", "-y",
-            "-i", video_tmp_path,
-            "-vn",
-            "-acodec", "mp3",
-            audio_tmp
-        ],
-        capture_output=True,
-        check=True
-    )
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i", video_tmp_path,
+                "-vn",
+                "-ac", "1",
+                "-ar", "16000",
+                "-b:a", "32k",
+                audio_tmp,
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
 
-    return audio_tmp
+        return audio_tmp
 
+    except subprocess.CalledProcessError as exc:
+        logger.error(
+            "FFmpeg audio extraction failed: %s",
+            exc.stderr,
+        )
 
-# def generate_transcript(lecture, audio_path):
-#     """Transcribe audio using Whisper and save to DB."""
+        if os.path.exists(audio_tmp):
+            os.remove(audio_tmp)
 
-#     result = whisper_model.transcribe(audio_path)
-
-#     Transcript.objects.create(
-#         lecture=lecture,
-#         content=result["text"]
-#     )
-
+        raise
 
 
 def generate_notes(lecture):
@@ -187,24 +204,87 @@ timeline_chain = timeline_prompt | llm | StrOutputParser()
 
 
 def generate_transcript(lecture, audio_path):
-    """Transcribe audio using Whisper and save text + segment timestamps to DB."""
+    """
+    Transcribe lecture audio using Groq-hosted Whisper.
 
-    result = whisper_model.transcribe(audio_path)
+    Stores:
+    - full transcript text
+    - timestamped segments for timeline generation
+    """
 
-    segments = [
-        {
-            "start": round(seg["start"], 2),
-            "end": round(seg["end"], 2),
-            "text": seg["text"].strip(),
-        }
-        for seg in result.get("segments", [])
-    ]
-
-    Transcript.objects.create(
-        lecture=lecture,
-        content=result["text"],
-        segments=segments,
+    logger.info(
+        "Starting Groq transcription for lecture %s",
+        lecture.id,
     )
+
+    try:
+        with open(audio_path, "rb") as audio_file:
+            transcription = groq_client.audio.transcriptions.create(
+                file=(
+                    os.path.basename(audio_path),
+                    audio_file,
+                ),
+                model="whisper-large-v3-turbo",
+                response_format="verbose_json",
+                timestamp_granularities=["segment"],
+                temperature=0.0,
+            )
+
+        segments = []
+
+        for segment in transcription.segments or []:
+
+            if isinstance(segment, dict):
+                start = segment.get("start", 0)
+                end = segment.get("end", 0)
+                text = segment.get("text", "")
+
+            else:
+                start = getattr(segment, "start", 0)
+                end = getattr(segment, "end", 0)
+                text = getattr(segment, "text", "")
+
+            text = (text or "").strip()
+
+            if not text:
+                continue
+
+            segments.append(
+                {
+                    "start": round(float(start), 2),
+                    "end": round(float(end), 2),
+                    "text": text,
+                }
+            )
+
+        transcript_text = (
+            getattr(transcription, "text", "") or ""
+        ).strip()
+
+        if not transcript_text:
+            raise ValueError(
+                "Groq returned an empty transcription."
+            )
+
+        Transcript.objects.create(
+            lecture=lecture,
+            content=transcript_text,
+            segments=segments,
+        )
+
+        logger.info(
+            "Groq transcription completed for lecture %s. "
+            "%s segments generated.",
+            lecture.id,
+            len(segments),
+        )
+
+    except Exception:
+        logger.exception(
+            "Groq transcription failed for lecture %s",
+            lecture.id,
+        )
+        raise
 
 
 def _format_segments_for_prompt(segments):
@@ -250,3 +330,35 @@ def generate_timeline(lecture):
             equation=h.get("equation") or "",
         )
 
+
+def get_lecture_video_url(user, lecture_id):
+
+    try:
+        lecture = Lecture.objects.get(
+            id=lecture_id,
+            user=user,
+        )
+
+    except Lecture.DoesNotExist:
+        raise NotFound(
+            "Lecture not found."
+        )
+
+    key = _key_from_url(
+        lecture.video_file
+    )
+
+    s3 = get_s3_client()
+
+    video_url = s3.generate_presigned_url(
+        ClientMethod="get_object",
+        Params={
+            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+            "Key": key,
+        },
+        ExpiresIn=3600,
+    )
+
+    return {
+        "video_url": video_url
+    }

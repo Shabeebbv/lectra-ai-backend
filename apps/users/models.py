@@ -145,3 +145,17 @@ class FCMToken(models.Model):
 
     def __str__(self):
         return f"{self.user.id}"
+    
+    
+    
+class MFADevice(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="mfa_device")
+    secret = models.CharField(max_length=32)
+    is_enabled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.email or self.user.phone_number} MFA"
+    
+    

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -126,6 +127,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+SILENCED_SYSTEM_CHECKS = ["auth.E003"]
 
 #-----JWT----------------
 
@@ -192,6 +194,14 @@ CELERY_BROKER_URL = 'redis://redis:6379/0'
 
 CELERY_RESULT_BACKEND = 'django-db' 
 
+NOTIFICATION_RETENTION_DAYS = 30
+
+CELERY_BEAT_SCHEDULE = {
+    "delete-old-notifications": {
+        "task": "apps.lectures.tasks.delete_old_notifications",
+        "schedule": crontab(hour=3, minute=0),  # runs daily at 3:00 AM
+    },
+}
 #channels configuration
 
 ASGI_APPLICATION = 'config.asgi.application'

@@ -19,7 +19,7 @@ from .serializers import (
     NotificationSerializer,
     TimelineHighlightSerializer
 )
-from .services import create_lecture, delete_lecture, generate_presigned_url
+from .services import create_lecture, delete_lecture, generate_presigned_url, get_lecture_video_url
 
 
 class LectureUploadView(APIView):
@@ -199,4 +199,27 @@ class LectureTimelineView(APIView):
                 },
                 "highlights": serializer.data,
             }
+        )
+        
+        
+class LectureVideoURLView(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get(
+        self,
+        request,
+        lecture_id,
+    ):
+
+        data = get_lecture_video_url(
+            user=request.user,
+            lecture_id=lecture_id,
+        )
+
+        return success_response(
+            message="Lecture video fetched successfully",
+            data=data,
         )

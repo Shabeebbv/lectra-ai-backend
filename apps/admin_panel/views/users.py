@@ -44,8 +44,14 @@ class UserListView(APIView):
         page = paginator.paginate_queryset(queryset, request)
         serializer = UserListSerializer(page, many=True)
 
-        return paginator.get_paginated_response(
-            success_response(data=serializer.data, message="Users fetched successfully.")
+        return success_response(
+            message="Users fetched successfully.",
+            data={
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": serializer.data,
+            },
         )
 
 
@@ -140,7 +146,6 @@ class UserDetailView(APIView):
 
 
 class DeletedUserListView(APIView):
-    """Trash view — lists soft-deleted users."""
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
@@ -148,10 +153,16 @@ class DeletedUserListView(APIView):
         paginator = UserPagination()
         page = paginator.paginate_queryset(queryset, request)
         serializer = UserListSerializer(page, many=True)
-        return paginator.get_paginated_response(
-            success_response(data=serializer.data, message="Deleted users fetched successfully.")
-        )
 
+        return success_response(
+            message="Deleted users fetched successfully.",
+            data={
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": serializer.data,
+            },
+        )
 
 class UserRestoreView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]

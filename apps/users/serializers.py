@@ -2,7 +2,9 @@ import re
 
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import ValidationError
 User = get_user_model()
 
 EMAIL_REGEX = r"^[^@]+@[^@]+\.[^@]+$"
@@ -131,3 +133,21 @@ class FCMTokenSerializer(
 ):
 
     token = serializers.CharField()
+    
+    
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        refresh = RefreshToken(attrs["refresh"])
+        user_id = refresh.get("user_id")
+
+        user = User.objects.filter(id=user_id, is_deleted=False).first()
+
+        if not user:
+            raise ValidationError("User not found.")
+
+        if user.is_blocked:
+            raise ValidationError("Your account has been blocked. Contact support.")
+
+        # Re-run the default validation to actually issue the new access token
+        data = super().validate(attrs)
+        return data
