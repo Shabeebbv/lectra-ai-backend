@@ -20,11 +20,21 @@ ALLOWED_VIDEO_TYPES = {
 
 
 def get_s3_client():
+    """
+    Create an S3 client using boto3's default credential provider chain.
+
+    Local development:
+        boto3 can use credentials from environment variables or ~/.aws.
+
+    Production on EC2:
+        boto3 automatically obtains temporary credentials from the
+        IAM role attached to the EC2 instance.
+
+    No permanent AWS access keys need to be stored in the production .env.
+    """
     return boto3.client(
         "s3",
         region_name=settings.AWS_REGION,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         endpoint_url=f"https://s3.{settings.AWS_REGION}.amazonaws.com",
         config=Config(
             signature_version="s3v4",

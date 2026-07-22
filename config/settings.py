@@ -14,7 +14,6 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 from celery.schedules import crontab
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,7 +26,14 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', cast=bool, default=False)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in config(
+        "ALLOWED_HOSTS",
+        default="localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -70,7 +76,12 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
+    origin.strip()
+    for origin in config(
+        "CORS_ALLOWED_ORIGINS",
+        default="http://localhost:5173"
+    ).split(",")
+    if origin.strip()
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -233,10 +244,14 @@ SPECTACULAR_SETTINGS = {
 
 # AWS S3 Configuration
 
-AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID")
+AWS_ACCESS_KEY_ID = config(
+    "AWS_ACCESS_KEY_ID",
+    default=None
+)
 
 AWS_SECRET_ACCESS_KEY = config(
-    "AWS_SECRET_ACCESS_KEY"
+    "AWS_SECRET_ACCESS_KEY",
+    default=None
 )
 
 AWS_STORAGE_BUCKET_NAME = config(
