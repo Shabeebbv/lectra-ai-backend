@@ -3,7 +3,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
@@ -62,7 +62,7 @@ services:
   celery:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     command: celery -A config worker -l info --pool=solo
     env_file:
@@ -78,7 +78,7 @@ services:
   celery-beat:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     command: celery -A config beat -l info
     env_file:
