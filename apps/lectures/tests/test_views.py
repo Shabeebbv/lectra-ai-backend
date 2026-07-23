@@ -55,20 +55,59 @@ class TestLectureDetailView:
 
 
 class TestLectureDeleteView:
-    def test_deletes_lecture(self, api_client, lecture, mocker):
-        mocker.patch("apps.lectures.services._delete_from_s3")
-        mocker.patch("apps.lectures.vector_store.collection")
+    def test_deletes_lecture(
+        self,
+        api_client,
+        lecture,
+        mocker,
+    ):
+        mocker.patch(
+            "apps.lectures.services._delete_from_s3"
+        )
 
-        response = api_client.delete(f"/api/lectures/{lecture.id}/delete/", **auth_header(lecture.user))
+        mock_collection = mocker.MagicMock()
+
+        mocker.patch(
+            "apps.lectures.vector_store.get_collection",
+            return_value=mock_collection,
+        )
+
+        response = api_client.delete(
+            f"/api/lectures/{lecture.id}/delete/",
+            **auth_header(lecture.user),
+        )
 
         assert response.status_code == 204
-        assert not Lecture.objects.filter(id=lecture.id).exists()
 
-    def test_cannot_delete_other_users_lecture(self, api_client, create_user, lecture):
-        stranger = create_user(email="s2@s2.com", is_verified=True)
-        response = api_client.delete(f"/api/lectures/{lecture.id}/delete/", **auth_header(stranger))
+        mock_collection.delete.assert_called_once_with(
+            where={"lecture_id": str(lecture.id)}
+        )
+
+        assert not Lecture.objects.filter(
+            id=lecture.id
+        ).exists()
+
+    def test_cannot_delete_other_users_lecture(
+        self,
+        api_client,
+        create_user,
+        lecture,
+    ):
+        stranger = create_user(
+            email="s2@s2.com",
+            is_verified=True,
+        )
+
+        response = api_client.delete(
+            f"/api/lectures/{lecture.id}/delete/",
+            **auth_header(stranger),
+        )
+
         assert response.status_code == 404
-        assert Lecture.objects.filter(id=lecture.id).exists()
+
+        assert Lecture.objects.filter(
+            id=lecture.id
+        ).exists()
 
 
 class TestGenerateUploadURLView:

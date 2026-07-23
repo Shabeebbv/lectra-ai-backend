@@ -68,28 +68,71 @@ class TestGenerateNotes:
 
 
 class TestDeleteLecture:
-    def test_deletes_s3_chroma_and_db_row(self, lecture, mocker):
-        mock_delete_s3 = mocker.patch("apps.lectures.services._delete_from_s3")
-        mock_collection = mocker.patch("apps.lectures.vector_store.collection")
+    def test_deletes_s3_chroma_and_db_row(
+        self,
+        lecture,
+        mocker,
+    ):
+        mock_delete_s3 = mocker.patch(
+            "apps.lectures.services._delete_from_s3"
+        )
+
+        mock_collection = mocker.MagicMock()
+
+        mocker.patch(
+            "apps.lectures.vector_store.get_collection",
+            return_value=mock_collection,
+        )
+
         lecture_id = lecture.id
         video_file = lecture.video_file
 
         services.delete_lecture(lecture)
 
-        mock_delete_s3.assert_called_once_with(video_file)
-        mock_collection.delete.assert_called_once_with(where={"lecture_id": str(lecture_id)})
-        assert not Lecture.objects.filter(id=lecture_id).exists()
+        mock_delete_s3.assert_called_once_with(
+            video_file
+        )
 
-    def test_skips_s3_delete_when_no_video_file(self, lecture, mocker):
+        mock_collection.delete.assert_called_once_with(
+            where={"lecture_id": str(lecture_id)}
+        )
+
+        assert not Lecture.objects.filter(
+            id=lecture_id
+        ).exists()
+
+    def test_skips_s3_delete_when_no_video_file(
+        self,
+        lecture,
+        mocker,
+    ):
         lecture.video_file = ""
         lecture.save()
-        mock_delete_s3 = mocker.patch("apps.lectures.services._delete_from_s3")
-        mocker.patch("apps.lectures.vector_store.collection")
+
+        mock_delete_s3 = mocker.patch(
+            "apps.lectures.services._delete_from_s3"
+        )
+
+        mock_collection = mocker.MagicMock()
+
+        mocker.patch(
+            "apps.lectures.vector_store.get_collection",
+            return_value=mock_collection,
+        )
+
+        lecture_id = lecture.id
 
         services.delete_lecture(lecture)
 
         mock_delete_s3.assert_not_called()
 
+        mock_collection.delete.assert_called_once_with(
+            where={"lecture_id": str(lecture_id)}
+        )
+
+        assert not Lecture.objects.filter(
+            id=lecture_id
+        ).exists()
 
 class TestGeneratePresignedUrl:
     def test_returns_upload_and_encoded_file_url(self, mocker, settings):

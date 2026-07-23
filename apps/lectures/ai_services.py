@@ -1,5 +1,5 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from .vector_store import collection
+from .vector_store import get_collection
 
 
 def split_transcript(transcript_text):
@@ -11,19 +11,26 @@ def split_transcript(transcript_text):
 
 
 def store_chunks(lecture_id, chunks):
-    ids = [f"{lecture_id}_{i}" for i, _ in enumerate(chunks)]
-    metadatas = [{"lecture_id": str(lecture_id)} for _ in chunks]
-
     try:
-       
-        collection.delete(where={"lecture_id": str(lecture_id)})
+        collection = get_collection()
+
+        collection.delete(
+            where={"lecture_id": str(lecture_id)}
+        )
 
         collection.add(
             documents=chunks,
-            ids=ids,
-            metadatas=metadatas
+            ids=[
+                f"{lecture_id}_{i}"
+                for i in range(len(chunks))
+            ],
+            metadatas=[
+                {"lecture_id": str(lecture_id)}
+                for _ in chunks
+            ],
         )
-    except Exception as e:
+
+    except Exception as exc:
         raise RuntimeError(
-            f"Failed to store chunks for lecture {lecture_id}: {e}"
-        )
+            f"Failed to store chunks for lecture {lecture_id}"
+        ) from exc

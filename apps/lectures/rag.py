@@ -1,7 +1,7 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-from .vector_store import collection
+from .vector_store import get_collection
 from .llm import llm
 
 
@@ -10,7 +10,7 @@ def retrieve_context(
     question: str,
     top_k: int = 3,
 ) -> str:
-
+    collection = get_collection()
     lecture_chunks = collection.get(where={"lecture_id": str(lecture_id)})
     chunk_ids = lecture_chunks.get("ids", [])
 

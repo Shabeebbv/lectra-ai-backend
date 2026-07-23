@@ -130,7 +130,8 @@ def delete_lecture(lecture):
     if lecture.video_file:
         _delete_from_s3(lecture.video_file)
 
-    from .vector_store import collection
+    from .vector_store import get_collection
+    collection = get_collection()
     collection.delete(
         where={"lecture_id": str(lecture.id)}
     )
