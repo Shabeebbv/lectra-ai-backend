@@ -14,6 +14,25 @@ jobs:
     name: Django CI Checks
     runs-on: ubuntu-latest
 
+    env:
+      SECRET_KEY: ci-only-dummy-secret-key-not-for-production
+
+      EMAIL_HOST_USER: ci@example.com
+      EMAIL_HOST_PASSWORD: ci-dummy-password
+
+      TWILIO_ACCOUNT_SID: ci_dummy_sid
+      TWILIO_AUTH_TOKEN: ci_dummy_token
+      TWILIO_PHONE_NUMBER: "+10000000000"
+
+      GROQ_API_KEY: ci_dummy_groq_key
+
+      AWS_STORAGE_BUCKET_NAME: ci-dummy-bucket
+      AWS_REGION: ap-south-1
+      AWS_SQS_URL: https://sqs.ap-south-1.amazonaws.com/000000000000/ci-dummy
+
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
