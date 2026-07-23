@@ -71,3 +71,66 @@ jobs:
           DB_PORT: "5432"
         run: |
           python manage.py makemigrations --check --dry-run
+
+  deploy:
+    name: Deploy to EC2
+    needs: test
+
+    # Deploy only after CI passes for a push to main.
+    # Pull requests will run CI but will not deploy.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/lectra_ai
+          chmod 600 ~/.ssh/lectra_ai
+
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy application to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          ssh -i ~/.ssh/lectra_ai "$EC2_USER@$EC2_HOST" << 'EOF'
+            set -e
+
+            cd /srv/lectra-ai
+
+            echo "Updating backend source..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Building backend image..."
+            docker compose -f docker-compose.prod.yml build web celery celery-beat
+
+            echo "Deploying containers..."
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "Running migrations..."
+            docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+
+            echo "Collecting static files..."
+            docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
+
+            echo "Waiting for backend..."
+            sleep 10
+
+            echo "Checking containers..."
+            docker compose -f docker-compose.prod.yml ps
+
+            echo "Checking backend health..."
+            curl --fail --silent --show-error \
+              https://lectra-ai.duckdns.org/api/docs/ > /dev/null
+
+            echo "Deployment successful."
+          EOF
